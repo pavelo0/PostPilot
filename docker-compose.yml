@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postpilot-postgres
+    restart: unless-stopped
+    ports:
+      - '5432:543'
+    environment:
+      POSTGRES_USER: postpilot
+      POSTGRES_PASSWORD: postpilot
+      POSTGRES_DB: postpilot
+    volumes:
+      - postpilot_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postpilot -d postpilot']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postpilot_pg_data:
