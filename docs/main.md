@@ -19,6 +19,8 @@
 помочь администраторам 1–5 Telegram-каналов публиковать стабильнее, тратить
 меньше ручного времени и лучше понимать, какие посты работают.
 
+**Разработка (Ship mode):** [ship-modules.md](./ship-modules.md) · [cursor-rules.md](./cursor-rules.md)
+
 Decisions backlog
 
 Ideas backlog

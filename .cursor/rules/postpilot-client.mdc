@@ -1,0 +1,33 @@
+---
+description: PostPilot frontend — React, Vite, UI conventions
+globs: client/**/*
+alwaysApply: false
+---
+
+# PostPilot Client
+
+## Stack
+
+React · Vite · TypeScript · React Router · TanStack Query · React Hook Form · Zod
+
+UI kit: см. `docs/designSystem.md` (активно с Module 5; до этого — минимальный чистый UI).
+
+## API calls
+
+- Dev: относительные пути `/api/...` (Vite proxy → `:3000`)
+- Всегда `credentials: 'include'` для cookie-auth
+- TanStack Query для server state; не дублировать в useState
+
+## Структура (целевая)
+
+- `client/src/pages/` — экраны
+- `client/src/api/` — hooks и fetch-обёртки
+- `client/src/components/` — переиспользуемые UI
+
+## TypeScript
+
+Без `any`. Типы API-ответов явные.
+
+## Scope Pre-MVP
+
+Без SEO/Next.js. SPA после логина. Один канал, текст, publish now.

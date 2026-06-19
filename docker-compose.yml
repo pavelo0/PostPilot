@@ -4,7 +4,7 @@ services:
     container_name: postpilot-postgres
     restart: unless-stopped
     ports:
-      - '5432:543'
+      - '5432:5432'
     environment:
       POSTGRES_USER: postpilot
       POSTGRES_PASSWORD: postpilot

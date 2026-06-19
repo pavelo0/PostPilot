@@ -1,16 +1,35 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 export type HealthStatus = {
-  status: 'ok';
+  status: 'ok' | 'degraded';
   timestamp: string;
+  db: 'up' | 'down';
 };
 
+/**
+ * Проверка живости API и readiness (PostgreSQL).
+ */
 @Injectable()
 export class HealthService {
-  getStatus(): HealthStatus {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async getStatus(): Promise<HealthStatus> {
+    const dbUp = await this.checkDatabase();
+
     return {
-      status: 'ok',
+      status: dbUp ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
+      db: dbUp ? 'up' : 'down',
     };
+  }
+
+  private async checkDatabase(): Promise<boolean> {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

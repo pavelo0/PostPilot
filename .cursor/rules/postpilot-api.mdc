@@ -1,0 +1,35 @@
+---
+description: PostPilot backend — NestJS, Prisma, API conventions
+globs: api/**/*
+alwaysApply: false
+---
+
+# PostPilot API
+
+## Stack
+
+NestJS modular monolith · Prisma 7 · PostgreSQL · `@prisma/adapter-pg` · cookie auth (с M1)
+
+## Структура
+
+- `api/src/<domain>/` — module, controller, service (auth, posts, channels, telegram)
+- Controller — только HTTP; бизнес-логика в Service
+- Prisma только через `PrismaService` (global module)
+
+## Prisma 7 + NestJS
+
+- `schema.prisma`: `moduleFormat = "cjs"`, output `../src/generated/prisma`
+- Import: `from '../generated/prisma/client'` (не `@prisma/client`)
+- Миграции: `prisma migrate dev` локально, `migrate deploy` на staging/prod
+- Schema — source of truth; не менять БД руками
+
+## API
+
+- Global prefix: `/api` (health → `/api/health`)
+- Валидация входа: Zod или class-validator
+- Секреты только в `api/.env`; `TELEGRAM_BOT_TOKEN` никогда на frontend
+- Ошибки без утечки stack trace наружу
+
+## Безопасность (baseline)
+
+HttpOnly cookies · bcrypt для паролей · RBAC/CSRF — в Module 14
