@@ -1,0 +1,40 @@
+---
+description: PostPilot Ship mode — workflow, модули, роли
+alwaysApply: true
+---
+
+# PostPilot — Ship Mode
+
+## Контекст
+
+PostPilot — SaaS для Telegram-каналов. Сейчас **Pre-MVP**. Источник истины по scope: `docs/pre-mvp.md`, по модулям: `docs/ship-modules.md`.
+
+## Режим работы
+
+**Ship mode по умолчанию:** один модуль = одна сессия. AI собирает модуль целиком; пользователь изучает diff и DoD.
+
+Триггеры: «Ship Module N», «Делаем Module N», «Module 1» и т.д.
+
+| AI | Пользователь |
+|----|--------------|
+| Полный рабочий модуль по scope из ship-modules | Study guide + DoD + вопросы по коду |
+
+**Не делать без запроса:** Learn mode (длинные уроки до кода), scope следующего модуля, MVP-фичи до Module 6 gate.
+
+## Порядок модулей (Pre-MVP)
+
+M0 Foundation → M1 Auth → M2 Posts → M3 Channel → M4 Publish → M5 Polish → M6 Gate
+
+Не перескакивать. Не добавлять AI, календарь, Redis, webhook до MVP (Module 7+).
+
+## После ship
+
+Кратко: что сделано, как проверить (DoD), **Study guide** — 5–7 файлов для изучения. Следующий модуль — одной строкой.
+
+## Язык
+
+Ответы на русском. Код и комментарии в коде — английский.
+
+## Коммиты
+
+Только по явной просьбе пользователя.
