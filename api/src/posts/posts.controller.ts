@@ -88,4 +88,19 @@ export class PostsController {
     await this.postsService.removeForUser(id, request.authUser!.id);
     return { success: true };
   }
+
+  /**
+   * Sends post description/body to connected Telegram channel.
+   */
+  @HttpPost(':id/send-description')
+  async sendDescription(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<{ success: true; messageId: number }> {
+    const result = await this.postsService.sendDescriptionForUser(
+      id,
+      request.authUser!.id,
+    );
+    return { success: true, messageId: result.messageId };
+  }
 }

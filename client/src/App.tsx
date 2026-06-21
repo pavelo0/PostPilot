@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { getCurrentUser } from './api/auth';
+import { ChannelConnectPage } from './pages/channel/ChannelConnectPage';
 import { LoginPage } from './pages/LoginPage';
 import { PostEditorPage } from './pages/posts/PostEditorPage';
 import { PostsListPage } from './pages/posts/PostsListPage';
@@ -91,6 +92,14 @@ export default function App(): ReactElement {
         element={
           <ProtectedRoute>
             <PostsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/channel"
+        element={
+          <ProtectedRoute>
+            <ChannelConnectPage />
           </ProtectedRoute>
         }
       />

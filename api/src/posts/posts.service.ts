@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import type { Post } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { TelegramService } from '../telegram/telegram.service';
 import {
   createPostSchema,
   type CreatePostInput,
@@ -15,7 +16,14 @@ import type { PostDto } from './posts.types';
 
 type PostSelectResult = Pick<
   Post,
-  'id' | 'userId' | 'title' | 'body' | 'status' | 'createdAt' | 'updatedAt'
+  | 'id'
+  | 'userId'
+  | 'channelId'
+  | 'title'
+  | 'body'
+  | 'status'
+  | 'createdAt'
+  | 'updatedAt'
 >;
 
 /**
@@ -23,7 +31,10 @@ type PostSelectResult = Pick<
  */
 @Injectable()
 export class PostsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly telegramService: TelegramService,
+  ) {}
 
   /**
    * Returns current user's posts ordered by newest first.
@@ -100,6 +111,39 @@ export class PostsService {
     await this.prisma.post.delete({ where: { id: postId } });
   }
 
+  /**
+   * Sends post body to user's connected Telegram channel.
+   */
+  async sendDescriptionForUser(
+    postId: string,
+    userId: string,
+  ): Promise<{ messageId: number }> {
+    const post = await this.findOwnedPostOrThrow(postId, userId);
+    const channel = await this.prisma.channel.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        telegramChatId: true,
+      },
+    });
+
+    if (!channel) {
+      throw new BadRequestException('Connect channel first');
+    }
+
+    const sentMessage = await this.telegramService.sendMessage(
+      channel.telegramChatId,
+      post.body,
+    );
+
+    await this.prisma.post.update({
+      where: { id: postId },
+      data: { channelId: channel.id },
+    });
+
+    return { messageId: sentMessage.message_id };
+  }
+
   private parseCreateInput(payload: unknown): CreatePostInput {
     const parsed = createPostSchema.safeParse(payload);
     if (!parsed.success) {
@@ -148,6 +192,7 @@ export class PostsService {
     return {
       id: true,
       userId: true,
+      channelId: true,
       title: true,
       body: true,
       status: true,
@@ -160,6 +205,7 @@ export class PostsService {
     return {
       id: post.id,
       userId: post.userId,
+      channelId: post.channelId,
       title: post.title,
       body: post.body,
       status: post.status,

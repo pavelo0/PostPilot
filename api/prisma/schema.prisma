@@ -16,6 +16,7 @@ model User {
   updatedAt    DateTime  @updatedAt
   sessions     Session[]
   posts        Post[]
+  channel      Channel?
 }
 
 model Session {
@@ -40,13 +41,31 @@ enum PostStatus {
 model Post {
   id        String     @id @default(cuid())
   userId    String
+  channelId String?
   title     String?
   body      String
   status    PostStatus @default(draft)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   Channel?   @relation(fields: [channelId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([status])
+  @@index([channelId])
+}
+
+model Channel {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  telegramChatId   String
+  telegramUsername String?
+  title            String?
+  botConnectedAt   DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts            Post[]
+
+  @@index([telegramChatId])
 }

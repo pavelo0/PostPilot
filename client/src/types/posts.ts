@@ -5,6 +5,7 @@ export type PostStatus = (typeof POST_STATUSES)[number];
 export type PostItem = {
   id: string;
   userId: string;
+  channelId: string | null;
   title: string | null;
   body: string;
   status: PostStatus;

@@ -9,6 +9,11 @@ type PostResponse = {
   post: PostItem;
 };
 
+type SendDescriptionResponse = {
+  success: true;
+  messageId: number;
+};
+
 /**
  * Executes posts API request with cookie credentials.
  */
@@ -94,5 +99,16 @@ export async function updatePost(
 export async function deletePost(postId: string): Promise<void> {
   await request<{ success: true }>(`/api/posts/${postId}`, {
     method: 'DELETE',
+  });
+}
+
+/**
+ * Sends post body to connected Telegram channel.
+ */
+export async function sendPostDescription(
+  postId: string,
+): Promise<SendDescriptionResponse> {
+  return request<SendDescriptionResponse>(`/api/posts/${postId}/send-description`, {
+    method: 'POST',
   });
 }
