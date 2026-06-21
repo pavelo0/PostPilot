@@ -1,30 +1,19 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FormEvent, ReactElement } from 'react';
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { login } from '../api/auth';
+import { useLoginMutation } from '../store/api';
+import { getApiErrorMessage } from '../store/error';
 
 /**
  * Login form page for existing users.
  */
 export function LoginPage(): ReactElement {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [triggerLogin, { isLoading }] = useLoginMutation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-
-  const loginMutation = useMutation({
-    mutationFn: login,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      await navigate('/app');
-    },
-    onError: (error: Error) => {
-      setFormError(error.message);
-    },
-  });
 
   /**
    * Submits login credentials to API.
@@ -32,7 +21,12 @@ export function LoginPage(): ReactElement {
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setFormError(null);
-    await loginMutation.mutateAsync({ email, password });
+    try {
+      await triggerLogin({ email, password }).unwrap();
+      await navigate('/app');
+    } catch (error) {
+      setFormError(getApiErrorMessage(error));
+    }
   }
 
   return (
@@ -60,8 +54,8 @@ export function LoginPage(): ReactElement {
 
           {formError ? <p className="error">{formError}</p> : null}
 
-          <button type="submit" disabled={loginMutation.isPending}>
-            {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
         <p className="muted">

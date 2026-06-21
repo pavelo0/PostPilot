@@ -1,42 +1,22 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { FormEvent, ReactElement } from 'react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { connectChannel, getMyChannel } from '../../api/channels';
-import { ApiError } from '../../api/auth';
+import {
+  useConnectChannelMutation,
+  useGetMyChannelQuery,
+} from '../../store/api';
+import { getApiErrorMessage } from '../../store/error';
 
 /**
  * Connects Telegram channel and shows current channel status.
  */
 export function ChannelConnectPage(): ReactElement {
-  const queryClient = useQueryClient();
+  const [triggerConnectChannel, { isLoading: isConnecting }] =
+    useConnectChannelMutation();
   const [channelInput, setChannelInput] = useState('');
   const [connectError, setConnectError] = useState<string | null>(null);
 
-  const channelQuery = useQuery({
-    queryKey: ['channel', 'me'],
-    queryFn: getMyChannel,
-    retry: false,
-  });
-
-  const connectMutation = useMutation({
-    mutationFn: connectChannel,
-    onSuccess: async (channel) => {
-      setConnectError(null);
-      setChannelInput(channel.telegramUsername ? `@${channel.telegramUsername}` : '');
-      await queryClient.invalidateQueries({ queryKey: ['channel', 'me'] });
-    },
-    onError: (error: Error) => {
-      setConnectError(error.message);
-    },
-  });
-
-  const hasNoConnectedChannel = useMemo(() => {
-    if (!channelQuery.isError) {
-      return false;
-    }
-    return channelQuery.error instanceof ApiError && channelQuery.error.status === 404;
-  }, [channelQuery.error, channelQuery.isError]);
+  const channelQuery = useGetMyChannelQuery();
 
   /**
    * Submits channel connect form.
@@ -44,9 +24,14 @@ export function ChannelConnectPage(): ReactElement {
   async function handleConnect(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setConnectError(null);
-    await connectMutation.mutateAsync({
-      channel: channelInput,
-    });
+    try {
+      const channel = await triggerConnectChannel({
+        channel: channelInput,
+      }).unwrap();
+      setChannelInput(channel.telegramUsername ? `@${channel.telegramUsername}` : '');
+    } catch (error) {
+      setConnectError(getApiErrorMessage(error));
+    }
   }
 
   if (channelQuery.isLoading) {
@@ -77,7 +62,7 @@ export function ChannelConnectPage(): ReactElement {
           </div>
         ) : null}
 
-        {channelQuery.isError && !hasNoConnectedChannel ? (
+        {channelQuery.isError ? (
           <p className="error">Failed to load channel status.</p>
         ) : null}
 
@@ -94,8 +79,8 @@ export function ChannelConnectPage(): ReactElement {
           {connectError ? <p className="error">{connectError}</p> : null}
 
           <div className="posts-actions">
-            <button type="submit" disabled={connectMutation.isPending}>
-              {connectMutation.isPending ? 'Connecting...' : 'Connect channel'}
+            <button type="submit" disabled={isConnecting}>
+              {isConnecting ? 'Connecting...' : 'Connect channel'}
             </button>
             <Link className="ghost-link" to="/app/posts">
               Back to posts

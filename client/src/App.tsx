@@ -1,26 +1,27 @@
-import { useQuery } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { getCurrentUser } from './api/auth';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import AppLayout from './layouts/AppLayout';
+import LandingLayout from './layouts/LandingLayout';
+import { DesignSystemPage } from './pages/DesignSystemPage';
+import { LandingPage } from './pages/LandingPage';
 import { ChannelConnectPage } from './pages/channel/ChannelConnectPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
-import { PostEditorPage } from './pages/posts/PostEditorPage';
-import { PostsListPage } from './pages/posts/PostsListPage';
 import { RegisterPage } from './pages/RegisterPage';
-import './App.css';
+import { useGetCurrentUserQuery } from './store/api';
 
 /**
- * Wraps routes that require authenticated user.
+ * Returns cached authenticated user query used by route guards.
  */
-function ProtectedRoute({
-  children,
-}: {
-  children: ReactElement;
-}): ReactElement {
-  const { data: user, isLoading } = useQuery({
-    queryKey: ['auth', 'me'],
-    queryFn: getCurrentUser,
-  });
+function useAuthSession() {
+  return useGetCurrentUserQuery();
+}
+
+/**
+ * Allows only authenticated users to access nested routes.
+ */
+function ProtectedRoute(): ReactElement {
+  const { data: user, isLoading } = useAuthSession();
 
   if (isLoading) {
     return <p className="centered-message">Loading session...</p>;
@@ -30,17 +31,14 @@ function ProtectedRoute({
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return <Outlet />;
 }
 
 /**
- * Redirects authenticated users away from guest-only routes.
+ * Redirects authenticated users away from guest routes.
  */
-function GuestRoute({ children }: { children: ReactElement }): ReactElement {
-  const { data: user, isLoading } = useQuery({
-    queryKey: ['auth', 'me'],
-    queryFn: getCurrentUser,
-  });
+function GuestRoute(): ReactElement {
+  const { data: user, isLoading } = useAuthSession();
 
   if (isLoading) {
     return <p className="centered-message">Loading session...</p>;
@@ -50,76 +48,32 @@ function GuestRoute({ children }: { children: ReactElement }): ReactElement {
     return <Navigate to="/app" replace />;
   }
 
-  return children;
+  return <Outlet />;
 }
 
 /**
- * Defines application routes for auth module.
+ * Defines public and protected application routes.
  */
 export default function App(): ReactElement {
   return (
     <Routes>
-      <Route
-        path="/"
-        element={<Navigate to="/app/posts" replace />}
-      />
-      <Route
-        path="/login"
-        element={
-          <GuestRoute>
-            <LoginPage />
-          </GuestRoute>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <GuestRoute>
-            <RegisterPage />
-          </GuestRoute>
-        }
-      />
-      <Route
-        path="/app"
-        element={
-          <ProtectedRoute>
-            <Navigate to="/app/posts" replace />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/app/posts"
-        element={
-          <ProtectedRoute>
-            <PostsListPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/app/channel"
-        element={
-          <ProtectedRoute>
-            <ChannelConnectPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/app/posts/new"
-        element={
-          <ProtectedRoute>
-            <PostEditorPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/app/posts/:postId"
-        element={
-          <ProtectedRoute>
-            <PostEditorPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/app/posts" replace />} />
+      <Route element={<GuestRoute />}>
+        <Route element={<LandingLayout />}>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/design-system" element={<DesignSystemPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute />}>
+        <Route path="/app" element={<AppLayout />}>
+          <Route index element={<DashboardPage />} />
+          <Route path="channel" element={<ChannelConnectPage />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

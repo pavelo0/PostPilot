@@ -1,30 +1,19 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { FormEvent, ReactElement } from 'react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { register } from '../api/auth';
+import { useRegisterMutation } from '../store/api';
+import { getApiErrorMessage } from '../store/error';
 
 /**
  * Registration form page for new users.
  */
 export function RegisterPage(): ReactElement {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const [triggerRegister, { isLoading }] = useRegisterMutation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-
-  const registerMutation = useMutation({
-    mutationFn: register,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-      await navigate('/app');
-    },
-    onError: (error: Error) => {
-      setFormError(error.message);
-    },
-  });
 
   /**
    * Submits registration data to API.
@@ -32,7 +21,12 @@ export function RegisterPage(): ReactElement {
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setFormError(null);
-    await registerMutation.mutateAsync({ email, password });
+    try {
+      await triggerRegister({ email, password }).unwrap();
+      await navigate('/app');
+    } catch (error) {
+      setFormError(getApiErrorMessage(error));
+    }
   }
 
   return (
@@ -61,8 +55,8 @@ export function RegisterPage(): ReactElement {
 
           {formError ? <p className="error">{formError}</p> : null}
 
-          <button type="submit" disabled={registerMutation.isPending}>
-            {registerMutation.isPending ? 'Creating...' : 'Create account'}
+          <button type="submit" disabled={isLoading}>
+            {isLoading ? 'Creating...' : 'Create account'}
           </button>
         </form>
         <p className="muted">
