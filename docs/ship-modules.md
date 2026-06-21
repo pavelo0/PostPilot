@@ -25,6 +25,8 @@
 | M0 Foundation | ✅      | Docker Postgres, Nest `/api/health` + DB, Prisma 7, Vite proxy, dev scripts |
 | M1 Auth       | ✅      | User + Session (Prisma), cookie auth, guard, login/register/logout/me, simple UI |
 | M2 Posts      | ✅      | Post model + status enum, posts CRUD API, list/editor pages, TanStack Query |
+| M3 Channel    | ✅      | Channel (1 per user), bot token env, connect + admin check, channel page |
+| M4 Publish    | ✅      | `/posts/:id/publish`, published/failed statuses, publish UI, Telegram link |
 
 
 ---
@@ -182,17 +184,17 @@ curl http://localhost:5173/api/health  # proxy работает
 
 ## Module 3 — Telegram Channel
 
-**Статус:** ⬜ не начат
+**Статус:** ✅ готов
 
 **Цель:** один канал привязан, бот проверен как admin.
 
 **Scope:**
 
-- [ ] Prisma: `Channel` (1 на user)
-- [ ] `TELEGRAM_BOT_TOKEN` в env
-- [ ] API: connect channel, `getChatMember` проверка
-- [ ] Post.channelId — миграция
-- [ ] Client: экран «Подключить канал» + статус
+- [x] Prisma: `Channel` (1 на user)
+- [x] `TELEGRAM_BOT_TOKEN` в env
+- [x] API: connect channel, `getChatMember` проверка
+- [x] Post.channelId — миграция
+- [x] Client: экран «Подключить канал» + статус
 
 **Не входит:** webhook, несколько каналов (→ MVP Module 8)
 
@@ -205,10 +207,10 @@ curl http://localhost:5173/api/health  # proxy работает
 
 **DoD:**
 
-- [ ] Бот добавлен admin в канал
-- [ ] В кабинете указал @channel → статус «подключён»
-- [ ] Без admin-прав → понятная ошибка
-- [ ] Без канала publish заблокирован (UI + API)
+- [x] Бот добавлен admin в канал
+- [x] В кабинете указал @channel → статус «подключён»
+- [x] Без admin-прав → понятная ошибка
+- [x] Без канала publish заблокирован (UI + API)
 
 **Study guide:**
 
@@ -227,17 +229,17 @@ curl http://localhost:5173/api/health  # proxy работает
 
 ## Module 4 — Publish (Core Loop) 🎯
 
-**Статус:** ⬜ не начат
+**Статус:** ✅ готов
 
 **Цель:** **главный milestone Pre-MVP** — текст из редактора появляется в Telegram-канале.
 
 **Scope:**
 
-- [ ] `POST /posts/:id/publish` → `sendMessage`
-- [ ] Сохранить `telegramMessageId`, `publishedAt`
-- [ ] Ошибка → status `failed` + `errorMessage`
-- [ ] Client: кнопка «Опубликовать» + confirm
-- [ ] Ссылка на пост в Telegram
+- [x] `POST /posts/:id/publish` → `sendMessage`
+- [x] Сохранить `telegramMessageId`, `publishedAt`
+- [x] Ошибка → status `failed` + `errorMessage`
+- [x] Client: кнопка «Опубликовать» + confirm
+- [x] Ссылка на пост в Telegram
 
 **Deliverables:**
 
@@ -246,9 +248,9 @@ curl http://localhost:5173/api/health  # proxy работает
 
 **DoD:**
 
-- [ ] Черновик → «Опубликовать» → пост в реальном канале
-- [ ] В списке: status published, дата, ссылка
-- [ ] При ошибке (нет прав) → failed + сообщение
+- [x] Черновик → «Опубликовать» → пост в реальном канале
+- [x] В списке: status published, дата, ссылка
+- [x] При ошибке (нет прав) → failed + сообщение
 
 **Study guide:**
 
@@ -383,8 +385,8 @@ curl http://localhost:5173/api/health  # proxy работает
 
 |                      |                     |
 | -------------------- | ------------------- |
-| **Модуль**           | **Module 3 — Channel** |
-| **Команда для чата** | «Ship Module 3»        |
+| **Модуль**           | **Module 5 — Polish** |
+| **Команда для чата** | «Ship Module 5»       |
 
 
 ---

@@ -90,17 +90,17 @@ export class PostsController {
   }
 
   /**
-   * Sends post description/body to connected Telegram channel.
+   * Publishes post to connected Telegram channel.
    */
-  @HttpPost(':id/send-description')
-  async sendDescription(
+  @HttpPost(':id/publish')
+  async publish(
     @Req() request: AuthenticatedRequest,
     @Param('id') id: string,
-  ): Promise<{ success: true; messageId: number }> {
-    const result = await this.postsService.sendDescriptionForUser(
+  ): Promise<{ post: PostDto }> {
+    const post = await this.postsService.publishForUser(
       id,
       request.authUser!.id,
     );
-    return { success: true, messageId: result.messageId };
+    return { post };
   }
 }

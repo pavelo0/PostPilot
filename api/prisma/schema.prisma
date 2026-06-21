@@ -39,16 +39,19 @@ enum PostStatus {
 }
 
 model Post {
-  id        String     @id @default(cuid())
-  userId    String
-  channelId String?
-  title     String?
-  body      String
-  status    PostStatus @default(draft)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  channel   Channel?   @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  id                String     @id @default(cuid())
+  userId            String
+  channelId         String?
+  title             String?
+  body              String
+  status            PostStatus @default(draft)
+  telegramMessageId Int?
+  publishedAt       DateTime?
+  errorMessage      String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel           Channel?   @relation(fields: [channelId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([status])

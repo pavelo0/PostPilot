@@ -3,7 +3,8 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../../api/auth';
-import { deletePost, listPosts, sendPostDescription } from '../../api/posts';
+import { deletePost, listPosts, publishPost } from '../../api/posts';
+import type { PostItem } from '../../types/posts';
 
 /**
  * Lists current user posts and allows basic actions.
@@ -11,8 +12,9 @@ import { deletePost, listPosts, sendPostDescription } from '../../api/posts';
 export function PostsListPage(): ReactElement {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [sendError, setSendError] = useState<string | null>(null);
-  const [sendSuccess, setSendSuccess] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishSuccess, setPublishSuccess] = useState<string | null>(null);
+  const [activePublishPostId, setActivePublishPostId] = useState<string | null>(null);
 
   const postsQuery = useQuery({
     queryKey: ['posts'],
@@ -34,15 +36,19 @@ export function PostsListPage(): ReactElement {
     },
   });
 
-  const sendDescriptionMutation = useMutation({
-    mutationFn: sendPostDescription,
-    onSuccess: (_result, postId) => {
-      setSendError(null);
-      setSendSuccess(`Post ${postId.slice(0, 6)}... sent to Telegram`);
+  const publishMutation = useMutation({
+    mutationFn: publishPost,
+    onSuccess: async (post) => {
+      setPublishError(null);
+      setPublishSuccess(`Post "${post.title ?? 'Untitled draft'}" published`);
+      await queryClient.invalidateQueries({ queryKey: ['posts'] });
     },
     onError: (error: Error) => {
-      setSendSuccess(null);
-      setSendError(error.message);
+      setPublishSuccess(null);
+      setPublishError(error.message);
+    },
+    onSettled: () => {
+      setActivePublishPostId(null);
     },
   });
 
@@ -54,12 +60,21 @@ export function PostsListPage(): ReactElement {
   }
 
   /**
-   * Sends post body to connected Telegram channel.
+   * Publishes post body to connected Telegram channel.
    */
-  async function handleSendDescription(postId: string): Promise<void> {
-    setSendError(null);
-    setSendSuccess(null);
-    await sendDescriptionMutation.mutateAsync(postId);
+  async function handlePublish(post: PostItem): Promise<void> {
+    const shouldPublish = window.confirm(
+      `Publish "${post.title ?? 'Untitled draft'}" to Telegram now?`,
+    );
+
+    if (!shouldPublish) {
+      return;
+    }
+
+    setPublishError(null);
+    setPublishSuccess(null);
+    setActivePublishPostId(post.id);
+    await publishMutation.mutateAsync(post.id);
   }
 
   /**
@@ -112,8 +127,8 @@ export function PostsListPage(): ReactElement {
           <p className="muted">No posts yet. Create your first draft.</p>
         ) : (
           <>
-            {sendError ? <p className="error">{sendError}</p> : null}
-            {sendSuccess ? <p className="muted">{sendSuccess}</p> : null}
+            {publishError ? <p className="error">{publishError}</p> : null}
+            {publishSuccess ? <p className="muted">{publishSuccess}</p> : null}
             <ul className="posts-list">
               {posts.map((post) => (
                 <li key={post.id} className="post-item">
@@ -124,15 +139,39 @@ export function PostsListPage(): ReactElement {
                         ? `${post.body.slice(0, 120)}...`
                         : post.body}
                     </p>
-                    <small className="muted">Status: {post.status}</small>
+                    <small className={`status-badge status-${post.status}`}>
+                      {post.status}
+                    </small>
+                    {post.publishedAt ? (
+                      <p className="muted">
+                        Published at: {new Date(post.publishedAt).toLocaleString()}
+                      </p>
+                    ) : null}
+                    {post.telegramPostUrl ? (
+                      <a
+                        className="ghost-link"
+                        href={post.telegramPostUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open in Telegram
+                      </a>
+                    ) : null}
+                    {post.errorMessage ? (
+                      <p className="error">Last publish error: {post.errorMessage}</p>
+                    ) : null}
                   </div>
                   <div className="posts-actions">
                     <button
                       type="button"
-                      onClick={() => void handleSendDescription(post.id)}
-                      disabled={sendDescriptionMutation.isPending}
+                      onClick={() => void handlePublish(post)}
+                      disabled={
+                        publishMutation.isPending || deleteMutation.isPending
+                      }
                     >
-                      {sendDescriptionMutation.isPending ? 'Sending...' : 'Send description'}
+                      {publishMutation.isPending && activePublishPostId === post.id
+                        ? 'Publishing...'
+                        : 'Publish'}
                     </button>
                     <Link className="ghost-link" to={`/app/posts/${post.id}`}>
                       Edit
