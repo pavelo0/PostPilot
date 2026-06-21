@@ -24,6 +24,7 @@
 | ------------- | ------ | --------------------------------------------------------------------------- |
 | M0 Foundation | ✅      | Docker Postgres, Nest `/api/health` + DB, Prisma 7, Vite proxy, dev scripts |
 | M1 Auth       | ✅      | User + Session (Prisma), cookie auth, guard, login/register/logout/me, simple UI |
+| M2 Posts      | ✅      | Post model + status enum, posts CRUD API, list/editor pages, TanStack Query |
 
 
 ---
@@ -138,16 +139,16 @@ curl http://localhost:5173/api/health  # proxy работает
 
 ## Module 2 — Posts (CRUD черновиков)
 
-**Статус:** ⬜ не начат
+**Статус:** ✅ готов
 
 **Цель:** создать, редактировать, удалить черновик; список черновиков и опубликованных.
 
 **Scope:**
 
-- [ ] Prisma: `Post` + enum `PostStatus` (draft | published | failed)
-- [ ] API: CRUD `/posts` — только посты текущего user
-- [ ] Client: список постов + редактор (title?, body)
-- [ ] TanStack Query mutations + invalidation
+- [x] Prisma: `Post` + enum `PostStatus` (draft | published | failed)
+- [x] API: CRUD `/posts` — только посты текущего user
+- [x] Client: список постов + редактор (title?, body)
+- [x] TanStack Query mutations + invalidation
 
 **Не входит:** channelId (→ Module 3), publish (→ Module 4)
 
@@ -159,10 +160,10 @@ curl http://localhost:5173/api/health  # proxy работает
 
 **DoD:**
 
-- [ ] Создал черновик → виден в списке
-- [ ] Отредактировал → сохранилось после reload
-- [ ] Удалил → пропал из списка
-- [ ] Чужой post по id → 404
+- [x] Создал черновик → виден в списке
+- [x] Отредактировал → сохранилось после reload
+- [x] Удалил → пропал из списка
+- [x] Чужой post по id → 404
 
 **Study guide:**
 
@@ -382,8 +383,8 @@ curl http://localhost:5173/api/health  # proxy работает
 
 |                      |                     |
 | -------------------- | ------------------- |
-| **Модуль**           | **Module 2 — Posts** |
-| **Команда для чата** | «Ship Module 2»      |
+| **Модуль**           | **Module 3 — Channel** |
+| **Команда для чата** | «Ship Module 3»        |
 
 
 ---

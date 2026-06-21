@@ -42,7 +42,24 @@
   font-size: 14px;
 }
 
+.auth-form textarea,
+.auth-form select {
+  border-radius: 8px;
+  border: 1px solid #34394a;
+  background: #0e1323;
+  color: #e9edff;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
 .auth-form input:focus {
+  outline: 2px solid rgba(79, 107, 255, 0.35);
+  border-color: #4f6bff;
+}
+
+.auth-form textarea:focus,
+.auth-form select:focus {
   outline: 2px solid rgba(79, 107, 255, 0.35);
   border-color: #4f6bff;
 }
@@ -80,4 +97,62 @@
   display: grid;
   place-items: center;
   color: #a3aac3;
+}
+
+.posts-card {
+  max-width: 760px;
+}
+
+.posts-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.posts-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.posts-list {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.post-item {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.post-item h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.ghost-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #34394a;
+  border-radius: 8px;
+  color: #d4dcff;
+  text-decoration: none;
+}
+
+.ghost-link:hover {
+  text-decoration: none;
+  border-color: #4f6bff;
 }
