@@ -2,12 +2,15 @@
 
 Один модуль = **одна сессия/чат** в **Ship mode**.
 
-| Роль | Действие |
-|------|----------|
-| **AI** | Собирает модуль целиком, рабочий код в репо |
+
+| Роль   | Действие                                            |
+| ------ | --------------------------------------------------- |
+| **AI** | Собирает модуль целиком, рабочий код в репо         |
 | **Ты** | Изучаешь diff, гоняешь DoD, задаёшь вопросы по коду |
 
+
 **Формат сессии:**
+
 1. «Делаем Module N» → AI ship'ит
 2. Ты проходишь **Study guide** (файлы + вопросы)
 3. DoD галочки → следующий модуль
@@ -16,10 +19,12 @@
 
 ## Прогресс
 
-| Модуль | Статус | Что вошло |
-|--------|--------|-----------|
-| M0 Foundation | ✅ | Docker Postgres, Nest `/api/health` + DB, Prisma 7, Vite proxy, dev scripts |
-| M1 Auth | ⬜ | следующий |
+
+| Модуль        | Статус | Что вошло                                                                   |
+| ------------- | ------ | --------------------------------------------------------------------------- |
+| M0 Foundation | ✅      | Docker Postgres, Nest `/api/health` + DB, Prisma 7, Vite proxy, dev scripts |
+| M1 Auth       | ✅      | User + Session (Prisma), cookie auth, guard, login/register/logout/me, simple UI |
+
 
 ---
 
@@ -44,6 +49,7 @@ M7 Infra → M8 Multi-channel → M9 Media → M10 Schedule → M11 Confirm → 
 **Цель:** локально поднимается стек `Postgres + API + Client`, API видит БД.
 
 **Scope:**
+
 - [x] Docker Postgres
 - [x] NestJS API + `GET /health` (status + db)
 - [x] Prisma 7 + adapter-pg + migrate init
@@ -51,12 +57,14 @@ M7 Infra → M8 Multi-channel → M9 Media → M10 Schedule → M11 Confirm → 
 - [x] Скрипты/README: как поднять всё за 2 команды
 
 **Deliverables:**
+
 - `docker-compose.yml`
 - `api/` — Nest, PrismaModule, HealthModule
 - `client/` — proxy в `vite.config.ts`
 - `.env.example` (корень + `api/`)
 
 **DoD — проверь руками:**
+
 ```bash
 docker compose up -d
 cd api && npm run start:dev          # :3000/health → db: up
@@ -65,13 +73,16 @@ curl http://localhost:5173/api/health  # proxy работает
 ```
 
 **Study guide — что разобрать в коде:**
-| Файл | Вопрос себе |
-|------|-------------|
-| `docker-compose.yml` | Куда мапится порт Postgres? |
-| `api/src/main.ts` | Зачем CORS и `credentials: true`? |
+
+
+| Файл                               | Вопрос себе                                 |
+| ---------------------------------- | ------------------------------------------- |
+| `docker-compose.yml`               | Куда мапится порт Postgres?                 |
+| `api/src/main.ts`                  | Зачем CORS и `credentials: true`?           |
 | `api/src/prisma/prisma.service.ts` | Почему adapter-pg, а не голый PrismaClient? |
-| `api/src/health/health.service.ts` | Чем liveness отличается от readiness? |
-| `api/prisma/schema.prisma` | Зачем `moduleFormat = "cjs"`? |
+| `api/src/health/health.service.ts` | Чем liveness отличается от readiness?       |
+| `api/prisma/schema.prisma`         | Зачем `moduleFormat = "cjs"`?               |
+
 
 **Зависимости:** нет  
 **Следующий:** Module 1 — Auth
@@ -80,39 +91,45 @@ curl http://localhost:5173/api/health  # proxy работает
 
 ## Module 1 — Auth
 
-**Статус:** ⬜ не начат
+**Статус:** ✅ готов
 
 **Цель:** пользователь регистрируется, логинится, сессия живёт после F5.
 
 **Scope:**
-- [ ] Prisma: модель `User`
-- [ ] API: register, login, logout, `GET /me`
-- [ ] Cookie session (HttpOnly), bcrypt пароль, Zod validation
-- [ ] Guard на защищённых роутах
-- [ ] Client: React Router, Login/Register, TanStack Query
-- [ ] Protected layout — без логина в кабинет не попасть
+
+- [x] Prisma: модель `User`
+- [x] API: register, login, logout, `GET /me`
+- [x] Cookie session (HttpOnly), bcrypt пароль, Zod validation
+- [x] Guard на защищённых роутах
+- [x] Client: React Router, Login/Register, TanStack Query
+- [x] Protected layout — без логина в кабинет не попасть
 
 **Не входит:** workspace, RBAC, CSRF (→ MVP Module 14)
 
 **Deliverables:**
+
 - `api/src/auth/` — module, controller, service, guard, DTO
 - `api/prisma` — migration `add_user`
 - `client/src/pages/` — login, register
 - `client/src/api/` — auth hooks (TanStack Query)
 
 **DoD:**
-- [ ] Register → Login → попал в кабинет
-- [ ] F5 — всё ещё залогинен
-- [ ] Logout → редирект на login
-- [ ] `GET /posts` без cookie → 401
+
+- [x] Register → Login → попал в кабинет
+- [x] F5 — всё ещё залогинен
+- [x] Logout → редирект на login
+- [x] `GET /api/auth/me` без cookie → 401
 
 **Study guide:**
-| Тема | Где смотреть |
-|------|--------------|
-| Почему cookie, а не JWT в localStorage | `auth.service.ts`, `main.ts` CORS |
-| Как hash пароля | register flow |
-| Nest Guard | `auth.guard.ts` + декоратор `@Public()` |
-| Frontend auth state | TanStack Query + `credentials: 'include'` |
+
+
+| Тема                                   | Где смотреть                              |
+| -------------------------------------- | ----------------------------------------- |
+| Почему cookie, а не JWT в localStorage | `auth.service.ts`, `main.ts` CORS         |
+| Как hash пароля                        | register flow                             |
+| Nest Guard                             | `auth.guard.ts` + декоратор `@Public()`   |
+| Frontend auth state                    | TanStack Query + `credentials: 'include'` |
+
 
 **Зависимости:** Module 0  
 **Следующий:** Module 2 — Posts
@@ -126,6 +143,7 @@ curl http://localhost:5173/api/health  # proxy работает
 **Цель:** создать, редактировать, удалить черновик; список черновиков и опубликованных.
 
 **Scope:**
+
 - [ ] Prisma: `Post` + enum `PostStatus` (draft | published | failed)
 - [ ] API: CRUD `/posts` — только посты текущего user
 - [ ] Client: список постов + редактор (title?, body)
@@ -134,22 +152,27 @@ curl http://localhost:5173/api/health  # proxy работает
 **Не входит:** channelId (→ Module 3), publish (→ Module 4)
 
 **Deliverables:**
+
 - `api/src/posts/`
 - migration `add_posts`
 - `client/src/pages/posts/` — list, editor
 
 **DoD:**
+
 - [ ] Создал черновик → виден в списке
 - [ ] Отредактировал → сохранилось после reload
 - [ ] Удалил → пропал из списка
 - [ ] Чужой post по id → 404
 
 **Study guide:**
-| Тема | Где смотреть |
-|------|--------------|
-| Связь User → Post в schema | `schema.prisma` |
-| Как API фильтрует «только мои» | `posts.service.ts` |
+
+
+| Тема                             | Где смотреть       |
+| -------------------------------- | ------------------ |
+| Связь User → Post в schema       | `schema.prisma`    |
+| Как API фильтрует «только мои»   | `posts.service.ts` |
 | Optimistic vs pessimistic update | mutations в client |
+
 
 **Зависимости:** Module 1  
 **Следующий:** Module 3 — Channel
@@ -163,6 +186,7 @@ curl http://localhost:5173/api/health  # proxy работает
 **Цель:** один канал привязан, бот проверен как admin.
 
 **Scope:**
+
 - [ ] Prisma: `Channel` (1 на user)
 - [ ] `TELEGRAM_BOT_TOKEN` в env
 - [ ] API: connect channel, `getChatMember` проверка
@@ -172,23 +196,28 @@ curl http://localhost:5173/api/health  # proxy работает
 **Не входит:** webhook, несколько каналов (→ MVP Module 8)
 
 **Deliverables:**
+
 - `api/src/channels/`
 - `api/src/telegram/` — минимальный client (send + getChatMember)
 - migration `add_channels`
 - `client/src/pages/channel/`
 
 **DoD:**
+
 - [ ] Бот добавлен admin в канал
 - [ ] В кабинете указал @channel → статус «подключён»
 - [ ] Без admin-прав → понятная ошибка
 - [ ] Без канала publish заблокирован (UI + API)
 
 **Study guide:**
-| Тема | Где смотреть |
-|------|--------------|
-| Telegram Bot API basics | `telegram.service.ts` |
-| Почему токен только на backend | `.env`, не VITE_ |
-| 1 channel per user | unique constraint / service logic |
+
+
+| Тема                           | Где смотреть                      |
+| ------------------------------ | --------------------------------- |
+| Telegram Bot API basics        | `telegram.service.ts`             |
+| Почему токен только на backend | `.env`, не VITE_                  |
+| 1 channel per user             | unique constraint / service logic |
+
 
 **Зависимости:** Module 1 (Module 2 параллельно ок)  
 **Следующий:** Module 4 — Publish
@@ -202,6 +231,7 @@ curl http://localhost:5173/api/health  # proxy работает
 **Цель:** **главный milestone Pre-MVP** — текст из редактора появляется в Telegram-канале.
 
 **Scope:**
+
 - [ ] `POST /posts/:id/publish` → `sendMessage`
 - [ ] Сохранить `telegramMessageId`, `publishedAt`
 - [ ] Ошибка → status `failed` + `errorMessage`
@@ -209,20 +239,25 @@ curl http://localhost:5173/api/health  # proxy работает
 - [ ] Ссылка на пост в Telegram
 
 **Deliverables:**
+
 - publish logic в `posts.service.ts` + `telegram.service.ts`
 - UI: publish button, status badges, error toast
 
 **DoD:**
+
 - [ ] Черновик → «Опубликовать» → пост в реальном канале
 - [ ] В списке: status published, дата, ссылка
 - [ ] При ошибке (нет прав) → failed + сообщение
 
 **Study guide:**
-| Тема | Где смотреть |
-|------|--------------|
-| Idempotency — что если нажать дважды | publish handler |
-| Error handling Telegram API | try/catch + status failed |
-| Формирование t.me ссылки | message_id + chat |
+
+
+| Тема                                 | Где смотреть              |
+| ------------------------------------ | ------------------------- |
+| Idempotency — что если нажать дважды | publish handler           |
+| Error handling Telegram API          | try/catch + status failed |
+| Формирование t.me ссылки             | message_id + chat         |
+
 
 **Зависимости:** Module 2 + Module 3  
 **Следующий:** Module 5 — Polish
@@ -236,6 +271,7 @@ curl http://localhost:5173/api/health  # proxy работает
 **Цель:** продукт можно отдать 3–5 beta-тестерам.
 
 **Scope:**
+
 - [ ] Tailwind + shadcn/ui (или минимальный kit)
 - [ ] Empty states, loading, error toasts
 - [ ] React Hook Form + Zod на формах
@@ -246,16 +282,20 @@ curl http://localhost:5173/api/health  # proxy работает
 **Не входит:** Sentry, CI/CD pipeline (→ Module 14)
 
 **DoD:**
+
 - [ ] Staging URL открывается
 - [ ] Полный flow работает на staging
 - [ ] Нет «сломанных» empty states
 
 **Study guide:**
-| Тема | Где смотреть |
-|------|--------------|
-| Структура UI kit | `client/src/components/` |
-| Env dev vs staging | `.env.example` vs server env |
-| `prisma migrate deploy` на сервере | deploy docs |
+
+
+| Тема                               | Где смотреть                 |
+| ---------------------------------- | ---------------------------- |
+| Структура UI kit                   | `client/src/components/`     |
+| Env dev vs staging                 | `.env.example` vs server env |
+| `prisma migrate deploy` на сервере | deploy docs                  |
+
 
 **Зависимости:** Module 4  
 **Следующий:** Module 6 — Gate
@@ -269,6 +309,7 @@ curl http://localhost:5173/api/health  # proxy работает
 **Цель:** проверить гипотезу Pre-MVP из [pre-mvp.md](./pre-mvp.md).
 
 **Критерии:**
+
 - [ ] 3–5 админов подключили канал
 - [ ] Каждый ≥ 5 постов через сервис
 - [ ] ≥ 2 вернулись за 7 дней
@@ -338,10 +379,12 @@ curl http://localhost:5173/api/health  # proxy работает
 
 ## Текущий фокус
 
-| | |
-|--|--|
-| **Модуль** | **Module 1 — Auth** |
-| **Команда для чата** | «Ship Module 1» |
+
+|                      |                     |
+| -------------------- | ------------------- |
+| **Модуль**           | **Module 2 — Posts** |
+| **Команда для чата** | «Ship Module 2»      |
+
 
 ---
 
