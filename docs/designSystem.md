@@ -10,23 +10,27 @@ with high-contrast accents and modern typography.
 
 ### Surfaces & Backgrounds
 
+
 | Token                      | Hex       | Usage                              |
-| :------------------------- | :-------- | :--------------------------------- |
+| -------------------------- | --------- | ---------------------------------- |
 | `surface`                  | `#0e1323` | Main app background                |
 | `surface-dim`              | `#0e1323` | Underlying canvas                  |
 | `surface-bright`           | `#34394a` | Elevated components, active states |
 | `surface-container-lowest` | `#080d1d` | Inset areas, headers               |
 | `surface-container-low`    | `#161b2b` | Default card surfaces              |
 
+
 ### Accents & Brands
 
+
 | Token               | Hex                     | Usage                                  |
-| :------------------ | :---------------------- | :------------------------------------- |
+| ------------------- | ----------------------- | -------------------------------------- |
 | `primary`           | `#4f6bff`               | Electric Indigo: Primary actions, CTAs |
 | `primary-container` | `#1a2b5e`               | Hover states, secondary buttons        |
 | `secondary`         | `#3b82f6`               | Cobalt Blue: Supporting signals        |
 | `outline`           | `#34394a`               | Default borders and dividers           |
 | `outline-variant`   | `rgba(255,255,255,0.1)` | Subtle borders                         |
+
 
 ### Typography (Geist Sans)
 
@@ -55,3 +59,4 @@ with high-contrast accents and modern typography.
 
 - **Glassmorphism:** `backdrop-blur: 20px; background: rgba(14, 19, 35, 0.6);`
 - **Soft Glow:** `0 0 20px rgba(79, 107, 255, 0.2);` for primary focus states.
+

@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { getCurrentUser } from './api/auth';
-import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
+import { PostEditorPage } from './pages/posts/PostEditorPage';
+import { PostsListPage } from './pages/posts/PostsListPage';
 import { RegisterPage } from './pages/RegisterPage';
 import './App.css';
 
@@ -59,7 +60,7 @@ export default function App(): ReactElement {
     <Routes>
       <Route
         path="/"
-        element={<Navigate to="/app" replace />}
+        element={<Navigate to="/app/posts" replace />}
       />
       <Route
         path="/login"
@@ -81,11 +82,35 @@ export default function App(): ReactElement {
         path="/app"
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <Navigate to="/app/posts" replace />
           </ProtectedRoute>
         }
       />
-      <Route path="*" element={<Navigate to="/app" replace />} />
+      <Route
+        path="/app/posts"
+        element={
+          <ProtectedRoute>
+            <PostsListPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/posts/new"
+        element={
+          <ProtectedRoute>
+            <PostEditorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/posts/:postId"
+        element={
+          <ProtectedRoute>
+            <PostEditorPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/app/posts" replace />} />
     </Routes>
   );
 }
