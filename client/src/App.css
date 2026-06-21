@@ -114,6 +114,23 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+.posts-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: none;
+  background: #4f6bff;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.posts-actions button:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
 }
 
 .posts-list {
@@ -155,4 +172,13 @@
 .ghost-link:hover {
   text-decoration: none;
   border-color: #4f6bff;
+}
+
+.channel-status {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
 }
