@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ChangeEvent, FormEvent, ReactElement } from 'react';
+import type { FormEvent, ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { createPost, getPost, updatePost } from '../../api/posts';
-import type { PostStatus } from '../../types/posts';
 
 /**
  * Provides create/edit form for post drafts.
@@ -16,7 +15,6 @@ export function PostEditorPage(): ReactElement {
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [status, setStatus] = useState<PostStatus>('draft');
   const [formError, setFormError] = useState<string | null>(null);
 
   const postQuery = useQuery({
@@ -31,7 +29,6 @@ export function PostEditorPage(): ReactElement {
     }
     setTitle(postQuery.data.title ?? '');
     setBody(postQuery.data.body);
-    setStatus(postQuery.data.status);
   }, [postQuery.data]);
 
   const createMutation = useMutation({
@@ -50,7 +47,6 @@ export function PostEditorPage(): ReactElement {
       updatePost(postId!, {
         title,
         body,
-        status,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['posts'] });
@@ -63,13 +59,6 @@ export function PostEditorPage(): ReactElement {
   });
 
   /**
-   * Handles status select changes.
-   */
-  function handleStatusChange(event: ChangeEvent<HTMLSelectElement>): void {
-    setStatus(event.target.value as PostStatus);
-  }
-
-  /**
    * Submits create or update request.
    */
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -80,7 +69,6 @@ export function PostEditorPage(): ReactElement {
       await createMutation.mutateAsync({
         title,
         body,
-        status,
       });
       return;
     }
@@ -129,13 +117,6 @@ export function PostEditorPage(): ReactElement {
             rows={8}
             required
           />
-
-          <label htmlFor="post-status">Status</label>
-          <select id="post-status" value={status} onChange={handleStatusChange}>
-            <option value="draft">draft</option>
-            <option value="published">published</option>
-            <option value="failed">failed</option>
-          </select>
 
           {formError ? <p className="error">{formError}</p> : null}
 

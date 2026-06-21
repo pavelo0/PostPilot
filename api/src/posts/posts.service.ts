@@ -22,9 +22,16 @@ type PostSelectResult = Pick<
   | 'title'
   | 'body'
   | 'status'
+  | 'telegramMessageId'
+  | 'publishedAt'
+  | 'errorMessage'
   | 'createdAt'
   | 'updatedAt'
->;
+> & {
+  channel: {
+    telegramUsername: string | null;
+  } | null;
+};
 
 /**
  * Handles posts CRUD operations for authenticated users.
@@ -60,7 +67,7 @@ export class PostsService {
         userId,
         title: this.normalizeTitle(input.title),
         body: input.body,
-        status: input.status ?? 'draft',
+        status: 'draft',
       },
       select: this.postSelect(),
     });
@@ -85,7 +92,7 @@ export class PostsService {
     payload: unknown,
   ): Promise<PostDto> {
     const input = this.parseUpdateInput(payload);
-
+    const hasContentUpdate = input.title !== undefined || input.body !== undefined;
     await this.findOwnedPostOrThrow(postId, userId);
 
     const post = await this.prisma.post.update({
@@ -95,7 +102,14 @@ export class PostsService {
           ? { title: this.normalizeTitle(input.title) }
           : {}),
         ...(input.body !== undefined ? { body: input.body } : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(hasContentUpdate
+          ? {
+              status: 'draft',
+              telegramMessageId: null,
+              publishedAt: null,
+              errorMessage: null,
+            }
+          : {}),
       },
       select: this.postSelect(),
     });
@@ -114,16 +128,19 @@ export class PostsService {
   /**
    * Sends post body to user's connected Telegram channel.
    */
-  async sendDescriptionForUser(
-    postId: string,
-    userId: string,
-  ): Promise<{ messageId: number }> {
+  async publishForUser(postId: string, userId: string): Promise<PostDto> {
     const post = await this.findOwnedPostOrThrow(postId, userId);
+
+    if (post.status === 'published' && post.telegramMessageId !== null) {
+      return this.toDto(post);
+    }
+
     const channel = await this.prisma.channel.findUnique({
       where: { userId },
       select: {
         id: true,
         telegramChatId: true,
+        telegramUsername: true,
       },
     });
 
@@ -131,17 +148,39 @@ export class PostsService {
       throw new BadRequestException('Connect channel first');
     }
 
-    const sentMessage = await this.telegramService.sendMessage(
-      channel.telegramChatId,
-      post.body,
-    );
+    try {
+      const sentMessage = await this.telegramService.sendMessage(
+        channel.telegramChatId,
+        post.body,
+      );
 
-    await this.prisma.post.update({
-      where: { id: postId },
-      data: { channelId: channel.id },
-    });
+      const publishedPost = await this.prisma.post.update({
+        where: { id: postId },
+        data: {
+          status: 'published',
+          channelId: channel.id,
+          telegramMessageId: sentMessage.message_id,
+          publishedAt: new Date(),
+          errorMessage: null,
+        },
+        select: this.postSelect(),
+      });
 
-    return { messageId: sentMessage.message_id };
+      return this.toDto(publishedPost);
+    } catch (error: unknown) {
+      const errorMessage = this.normalizePublishError(error);
+      await this.prisma.post.update({
+        where: { id: postId },
+        data: {
+          status: 'failed',
+          channelId: channel.id,
+          telegramMessageId: null,
+          publishedAt: null,
+          errorMessage,
+        },
+      });
+      throw new BadRequestException(errorMessage);
+    }
   }
 
   private parseCreateInput(payload: unknown): CreatePostInput {
@@ -196,8 +235,16 @@ export class PostsService {
       title: true,
       body: true,
       status: true,
+      telegramMessageId: true,
+      publishedAt: true,
+      errorMessage: true,
       createdAt: true,
       updatedAt: true,
+      channel: {
+        select: {
+          telegramUsername: true,
+        },
+      },
     };
   }
 
@@ -209,8 +256,52 @@ export class PostsService {
       title: post.title,
       body: post.body,
       status: post.status,
+      telegramMessageId: post.telegramMessageId,
+      publishedAt: post.publishedAt?.toISOString() ?? null,
+      errorMessage: post.errorMessage,
+      telegramPostUrl: this.buildTelegramPostUrl(
+        post.channel?.telegramUsername ?? null,
+        post.telegramMessageId,
+      ),
       createdAt: post.createdAt.toISOString(),
       updatedAt: post.updatedAt.toISOString(),
     };
+  }
+
+  private buildTelegramPostUrl(
+    telegramUsername: string | null,
+    telegramMessageId: number | null,
+  ): string | null {
+    if (!telegramUsername || telegramMessageId === null) {
+      return null;
+    }
+    const cleanUsername = telegramUsername.replace(/^@/, '');
+    if (!cleanUsername) {
+      return null;
+    }
+    return `https://t.me/${cleanUsername}/${telegramMessageId}`;
+  }
+
+  private normalizePublishError(error: unknown): string {
+    if (error instanceof BadRequestException) {
+      const response = error.getResponse();
+      if (
+        typeof response === 'object' &&
+        response !== null &&
+        'message' in response
+      ) {
+        const message = (response as { message?: unknown }).message;
+        if (typeof message === 'string') {
+          return message;
+        }
+      }
+      return error.message;
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return 'Failed to publish post in Telegram';
   }
 }

@@ -9,6 +9,10 @@ export type PostDto = {
   title: string | null;
   body: string;
   status: PostStatus;
+  telegramMessageId: number | null;
+  publishedAt: string | null;
+  errorMessage: string | null;
+  telegramPostUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };

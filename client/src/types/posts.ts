@@ -9,6 +9,10 @@ export type PostItem = {
   title: string | null;
   body: string;
   status: PostStatus;
+  telegramMessageId: number | null;
+  publishedAt: string | null;
+  errorMessage: string | null;
+  telegramPostUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -16,7 +20,6 @@ export type PostItem = {
 export type CreatePostInput = {
   title?: string;
   body: string;
-  status?: PostStatus;
 };
 
 export type UpdatePostInput = Partial<CreatePostInput>;
