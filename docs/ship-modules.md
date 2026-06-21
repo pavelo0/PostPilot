@@ -20,13 +20,13 @@
 ## Прогресс
 
 
-| Модуль        | Статус | Что вошло                                                                   |
-| ------------- | ------ | --------------------------------------------------------------------------- |
-| M0 Foundation | ✅      | Docker Postgres, Nest `/api/health` + DB, Prisma 7, Vite proxy, dev scripts |
+| Модуль        | Статус | Что вошло                                                                        |
+| ------------- | ------ | -------------------------------------------------------------------------------- |
+| M0 Foundation | ✅      | Docker Postgres, Nest `/api/health` + DB, Prisma 7, Vite proxy, dev scripts      |
 | M1 Auth       | ✅      | User + Session (Prisma), cookie auth, guard, login/register/logout/me, simple UI |
-| M2 Posts      | ✅      | Post model + status enum, posts CRUD API, list/editor pages, TanStack Query |
-| M3 Channel    | ✅      | Channel (1 per user), bot token env, connect + admin check, channel page |
-| M4 Publish    | ✅      | `/posts/:id/publish`, published/failed statuses, publish UI, Telegram link |
+| M2 Posts      | ✅      | Post model + status enum, posts CRUD API, list/editor pages, TanStack Query      |
+| M3 Channel    | ✅      | Channel (1 per user), bot token env, connect + admin check, channel page         |
+| M4 Publish    | ✅      | `/posts/:id/publish`, published/failed statuses, publish UI, Telegram link       |
 
 
 ---
@@ -383,8 +383,8 @@ curl http://localhost:5173/api/health  # proxy работает
 ## Текущий фокус
 
 
-|                      |                     |
-| -------------------- | ------------------- |
+|                      |                       |
+| -------------------- | --------------------- |
 | **Модуль**           | **Module 5 — Polish** |
 | **Команда для чата** | «Ship Module 5»       |
 

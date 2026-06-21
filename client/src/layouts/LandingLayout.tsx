@@ -1,19 +1,18 @@
-import type { ReactElement } from 'react';
-import { Outlet } from 'react-router-dom';
-import Footer from '../components/Footer';
-import Header from '../components/Header';
+import { Outlet } from 'react-router-dom'
+import { LandingFooter } from '@/components/landing/LandingFooter'
+import { LandingHeader } from '@/components/landing/LandingHeader'
 
 /**
- * Wraps public pages with landing header and container.
+ * Public marketing layout with shared header and footer.
  */
-export default function LandingLayout(): ReactElement {
+export function LandingLayout() {
   return (
-    <div className="layout layout--landing">
-      <Header mode="landing" />
-      <main className="layout__content layout__content--landing">
+    <div className="min-h-screen bg-background">
+      <LandingHeader />
+      <main className="pt-16">
         <Outlet />
       </main>
-      <Footer />
+      <LandingFooter />
     </div>
-  );
+  )
 }
