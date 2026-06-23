@@ -10,9 +10,6 @@ const navLinks = [
 	{ label: 'FAQ', href: '#faq' }
 ];
 
-/**
- * Top navigation for the public landing pages.
- */
 export function LandingHeader() {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 

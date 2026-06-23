@@ -2,17 +2,12 @@ import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-/**
- * Password recovery page.
- */
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isSent, setIsSent] = useState(false)
 
-  /**
-   * Handles password reset request.
-   */
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
     setIsLoading(true)

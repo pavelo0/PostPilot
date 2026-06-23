@@ -30,9 +30,6 @@ const footerColumns = [
   },
 ]
 
-/**
- * Footer for public landing pages.
- */
 export function LandingFooter() {
   return (
     <footer className="border-t border-border">

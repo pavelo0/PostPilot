@@ -58,9 +58,6 @@ const pricingPlans: PricingPlan[] = [
   },
 ]
 
-/**
- * Pricing plans section.
- */
 export function LandingPricingSection() {
   return (
     <section id="pricing" className="border-t border-border px-6 py-24">

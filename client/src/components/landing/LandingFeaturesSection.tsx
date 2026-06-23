@@ -46,9 +46,6 @@ const features = [
   },
 ]
 
-/**
- * Key product features section.
- */
 export function LandingFeaturesSection() {
   return (
     <section id="features" className="border-t border-border px-6 py-24">

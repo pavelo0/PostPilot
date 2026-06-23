@@ -2,16 +2,11 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-/**
- * Login form page.
- */
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  /**
-   * Handles login form submission.
-   */
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
     setIsLoading(true)

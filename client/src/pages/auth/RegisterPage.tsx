@@ -7,9 +7,6 @@ type PasswordCheck = {
   isValid: boolean
 }
 
-/**
- * Register form page.
- */
 export function RegisterPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
@@ -25,9 +22,7 @@ export function RegisterPage() {
     [password],
   )
 
-  /**
-   * Handles register form submission.
-   */
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
     setIsLoading(true)

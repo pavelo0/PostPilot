@@ -1,9 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { AuthBrand } from '@/components/auth/AuthBrand'
 
-/**
- * Shared authentication layout for login, register and recovery pages.
- */
 export function AuthLayout() {
   return (
     <div className="flex min-h-screen bg-background">
