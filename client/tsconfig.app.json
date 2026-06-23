@@ -25,7 +25,6 @@
   "include": ["src"],
   "exclude": [
     "src/app/**",
-    "src/components/dashboard/**",
-    "src/components/ui/**"
+    "src/components/dashboard/**"
   ]
 }

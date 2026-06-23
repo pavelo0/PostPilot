@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
 
 const footerColumns = [
   {
@@ -43,13 +44,17 @@ export function LandingFooter() {
               14 дней бесплатно. Без привязки карты.
             </p>
           </div>
-          <Link
-            to="/register"
-            className="inline-flex shrink-0 items-center gap-2 rounded-md bg-foreground px-6 py-3 text-sm font-medium text-background transition-colors hover:bg-foreground/85"
+          <Button
+            asChild
+            variant="primary"
+            size="lg"
+            className="shrink-0"
           >
-            Начать бесплатно
-            <ArrowRight size={15} />
-          </Link>
+            <Link to="/register">
+              Начать бесплатно
+              <ArrowRight size={15} />
+            </Link>
+          </Button>
         </div>
       </div>
 
