@@ -8,6 +8,9 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 
 type Channel = {
   id: number
@@ -60,18 +63,19 @@ export function ChannelsDashboardPage() {
     <div className="max-w-4xl space-y-5">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{channels.length} канала подключено</p>
-        <button
+        <Button
           onClick={() => setIsAdding((value) => !value)}
-          className="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium text-background transition-opacity hover:opacity-85"
-          style={{ background: 'oklch(0.130 0.010 255)' }}
+          variant="primary"
+          size="sm"
+          className="h-9 px-4"
         >
           <Plus size={14} />
           Добавить канал
-        </button>
+        </Button>
       </div>
 
       {isAdding ? (
-        <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <Card className="space-y-4 p-5">
           <div>
             <h3 className="mb-1 text-sm font-semibold">Подключить Telegram-канал</h3>
             <p className="text-xs text-muted-foreground">
@@ -96,31 +100,30 @@ export function ChannelsDashboardPage() {
           </ol>
 
           <div className="flex gap-3">
-            <input
+            <Input
               type="text"
               placeholder="@channel_name"
-              className="h-9 flex-1 rounded-md border border-border bg-background px-3 text-sm outline-none focus-visible:ring-1"
+              className="h-9 flex-1 rounded-md px-3 text-sm focus-visible:ring-1"
               style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
             />
-            <button
-              className="h-9 rounded-md px-4 text-sm font-medium text-background transition-opacity hover:opacity-85"
-              style={{ background: 'oklch(0.420 0.095 200)' }}
-            >
+            <Button variant="primary" size="sm" className="h-9 px-4">
               Подключить
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setIsAdding(false)}
-              className="h-9 rounded-md border border-border px-4 text-sm transition-colors hover:bg-secondary"
+              variant="outline"
+              size="sm"
+              className="h-9 px-4"
             >
               Отмена
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       ) : null}
 
       <div className="space-y-3">
         {channels.map((channel) => (
-          <div key={channel.id} className="rounded-xl border border-border bg-card p-5">
+          <Card key={channel.id} className="p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
@@ -161,15 +164,30 @@ export function ChannelsDashboardPage() {
               </div>
 
               <div className="flex shrink-0 items-center gap-1">
-                <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
                   <RefreshCw size={14} />
-                </button>
-                <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
                   <ExternalLink size={14} />
-                </button>
-                <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive">
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-destructive"
+                >
                   <Trash2 size={14} />
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -200,7 +218,7 @@ export function ChannelsDashboardPage() {
                 </div>
               </div>
             ) : null}
-          </div>
+          </Card>
         ))}
       </div>
     </div>

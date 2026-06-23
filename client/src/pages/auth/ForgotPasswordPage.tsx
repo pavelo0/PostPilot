@@ -1,6 +1,8 @@
 import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -53,25 +55,26 @@ export function ForgotPasswordPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <label className="block space-y-1.5">
             <span className="text-sm font-medium">Email</span>
-            <input
+            <Input
               type="email"
               placeholder="you@example.com"
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus-visible:ring-1"
+              className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
               style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
             />
           </label>
 
-          <button
+          <Button
             type="submit"
             disabled={isLoading}
-            className="h-10 w-full rounded-md text-sm font-medium text-background transition-opacity disabled:opacity-60"
-            style={{ background: 'oklch(0.130 0.010 255)' }}
+            variant="primary"
+            size="md"
+            className="h-10 w-full disabled:opacity-60"
           >
             {isLoading ? 'Отправляем...' : 'Отправить ссылку'}
-          </button>
+          </Button>
         </form>
 
         <Link

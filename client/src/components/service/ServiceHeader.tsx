@@ -1,5 +1,6 @@
 import { Bell } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
 
 const titles: Record<string, { label: string; desc?: string }> = {
   '/dashboard': { label: 'Обзор', desc: 'Общая статистика и последние события' },
@@ -26,20 +27,27 @@ export function ServiceHeader() {
       </div>
 
       <div className="ml-4 flex shrink-0 items-center gap-1">
-        <button className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="relative"
+          aria-label="Уведомления"
+        >
           <Bell size={15} />
           <span
             className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full"
             style={{ background: 'oklch(0.420 0.095 200)' }}
           />
-        </button>
-        <Link
-          to="/dashboard/settings"
-          className="ml-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-secondary text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+        </Button>
+        <Button
+          asChild
+          variant="ghost"
+          size="icon-sm"
+          className="ml-1 rounded-full border border-border bg-secondary text-xs font-semibold text-foreground"
           title="Профиль"
         >
-          А
-        </Link>
+          <Link to="/dashboard/settings">А</Link>
+        </Button>
       </div>
     </header>
   )

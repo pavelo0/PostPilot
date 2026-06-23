@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { Bell, Lock, User, Zap } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 
 type TabKey = 'profile' | 'security' | 'notifications' | 'billing'
 
@@ -20,14 +23,17 @@ export function SettingsDashboardPage() {
         <p className="text-muted-foreground">Управляйте настройками вашего аккаунта</p>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 rounded-xl border border-border bg-card p-2">
+      <Card className="grid grid-cols-4 gap-2 p-2">
         {tabs.map((tab) => {
           const Icon = tab.icon
           return (
-            <button
+            <Button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+              variant="ghost"
+              size="sm"
+              className={`h-auto justify-center gap-2 px-3 py-2 text-sm ${
                 activeTab === tab.id
                   ? 'bg-secondary font-medium text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
@@ -35,97 +41,91 @@ export function SettingsDashboardPage() {
             >
               <Icon size={14} />
               <span className="hidden sm:inline">{tab.label}</span>
-            </button>
+            </Button>
           )
         })}
-      </div>
+      </Card>
 
       {activeTab === 'profile' ? (
-        <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <Card className="space-y-4 p-5">
           <h2 className="text-base font-semibold">Информация профиля</h2>
           <div className="grid grid-cols-2 gap-4">
             <label className="space-y-2">
               <span className="text-sm">Имя</span>
-              <input
+              <Input
                 defaultValue="Иван"
-                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus-visible:ring-1"
+                className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
                 style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
               />
             </label>
             <label className="space-y-2">
               <span className="text-sm">Фамилия</span>
-              <input
+              <Input
                 defaultValue="Петров"
-                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus-visible:ring-1"
+                className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
                 style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
               />
             </label>
           </div>
           <label className="block space-y-2">
             <span className="text-sm">Email</span>
-            <input
+            <Input
               type="email"
               defaultValue="ivan@example.com"
-              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus-visible:ring-1"
+              className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
               style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
             />
           </label>
-          <button
-            className="rounded-md px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-85"
-            style={{ background: 'oklch(0.130 0.010 255)' }}
-          >
+          <Button variant="primary" size="md">
             Сохранить
-          </button>
-        </section>
+          </Button>
+        </Card>
       ) : null}
 
       {activeTab === 'security' ? (
-        <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <Card className="space-y-4 p-5">
           <h2 className="text-base font-semibold">Пароль</h2>
           {['Текущий пароль', 'Новый пароль', 'Подтвердить пароль'].map((label) => (
             <label key={label} className="block space-y-2">
               <span className="text-sm">{label}</span>
-              <input
+              <Input
                 type="password"
-                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus-visible:ring-1"
+                className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
                 style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
               />
             </label>
           ))}
-          <button
-            className="rounded-md px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-85"
-            style={{ background: 'oklch(0.130 0.010 255)' }}
-          >
+          <Button variant="primary" size="md">
             Обновить пароль
-          </button>
-        </section>
+          </Button>
+        </Card>
       ) : null}
 
       {activeTab === 'notifications' ? (
-        <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <Card className="space-y-4 p-5">
           <h2 className="text-base font-semibold">Параметры уведомлений</h2>
           <p className="text-sm text-muted-foreground">
             Эта секция пока в режиме переноса верстки.
           </p>
-          <button className="rounded-md border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary">
+          <Button variant="outline" size="md">
             Настроить уведомления
-          </button>
-        </section>
+          </Button>
+        </Card>
       ) : null}
 
       {activeTab === 'billing' ? (
-        <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <Card className="space-y-4 p-5">
           <h2 className="text-base font-semibold">Текущий план</h2>
           <div className="flex items-center justify-between rounded-lg bg-secondary/50 p-4">
             <div>
               <p className="font-semibold">Профессионал</p>
               <p className="text-sm text-muted-foreground">2 490 ₽/месяц</p>
             </div>
-            <button className="rounded-md border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary">
+            <Button variant="outline" size="md">
               Изменить план
-            </button>
+            </Button>
           </div>
-        </section>
+        </Card>
       ) : null}
     </div>
   )

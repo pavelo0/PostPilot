@@ -10,6 +10,9 @@ import {
   Search,
   Sparkles,
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 
 type PostStatus = 'published' | 'scheduled' | 'draft' | 'failed'
 
@@ -68,50 +71,49 @@ export function PostsDashboardPage() {
             size={14}
             className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
           />
-          <input
+          <Input
             placeholder="Поиск постов..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus-visible:ring-1"
+            className="h-9 rounded-md pl-9 pr-3 text-sm focus-visible:ring-1"
             style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
           />
         </div>
 
         <div className="flex items-center gap-1 rounded-lg bg-secondary p-1">
           {filters.map((filterItem) => (
-            <button
+            <Button
               key={filterItem}
+              type="button"
               onClick={() => setFilter(filterItem)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+              variant="ghost"
+              size="sm"
+              className={`h-auto px-3 py-1 text-xs font-medium ${
                 filter === filterItem
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {filterItem}
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <Link
-            to="/dashboard/ai-assistant"
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-border px-4 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <Sparkles size={13} />
-            AI-генерация
-          </Link>
-          <button
-            className="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium text-background transition-colors hover:opacity-85"
-            style={{ background: 'oklch(0.130 0.010 255)' }}
-          >
+          <Button asChild variant="outline" size="sm" className="h-9 px-4">
+            <Link to="/dashboard/ai-assistant">
+              <Sparkles size={13} />
+              AI-генерация
+            </Link>
+          </Button>
+          <Button variant="primary" size="sm" className="h-9 px-4">
             <Plus size={14} />
             Новый пост
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <Card className="overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-secondary/30">
@@ -161,9 +163,14 @@ export function PostsDashboardPage() {
                       {post.views !== null ? post.views.toLocaleString('ru') : '—'}
                     </td>
                     <td className="px-4 py-3.5">
-                      <button className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      >
                         <MoreHorizontal size={15} />
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 )
@@ -174,7 +181,7 @@ export function PostsDashboardPage() {
         <div className="border-t border-border bg-secondary/20 px-5 py-3 text-xs text-muted-foreground">
           {filteredPosts.length} из {posts.length} постов
         </div>
-      </div>
+      </Card>
     </div>
   )
 }

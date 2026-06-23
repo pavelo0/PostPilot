@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { Clock, Edit3, FileText, Plus, Search, Send, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 
 type Draft = {
   id: number
@@ -58,34 +61,31 @@ export function DraftsDashboardPage() {
             size={14}
             className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
           />
-          <input
+          <Input
             placeholder="Поиск черновиков..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus-visible:ring-1"
+            className="h-9 rounded-md pl-9 pr-3 text-sm focus-visible:ring-1"
             style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
           />
         </div>
-        <button
-          className="ml-auto inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium text-background transition-opacity hover:opacity-85"
-          style={{ background: 'oklch(0.130 0.010 255)' }}
-        >
+        <Button variant="primary" size="sm" className="ml-auto h-9 px-4">
           <Plus size={14} />
           Новый черновик
-        </button>
+        </Button>
       </div>
 
       {filteredDrafts.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card p-12 text-center">
+        <Card className="p-12 text-center">
           <FileText size={28} className="mx-auto mb-3 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Черновики не найдены</p>
-        </div>
+        </Card>
       ) : (
         <div className="space-y-3">
           {filteredDrafts.map((draft) => (
-            <div
+            <Card
               key={draft.id}
-              className="group rounded-xl border border-border bg-card p-5 transition-shadow hover:shadow-sm"
+              className="group p-5 transition-shadow hover:shadow-sm"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -111,15 +111,30 @@ export function DraftsDashboardPage() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  >
                     <Edit3 size={14} />
-                  </button>
-                  <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  >
                     <Send size={14} />
-                  </button>
-                  <button className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive">
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-destructive"
+                  >
                     <Trash2 size={14} />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -134,7 +149,7 @@ export function DraftsDashboardPage() {
                   />
                 </div>
               ) : null}
-            </div>
+            </Card>
           ))}
         </div>
       )}

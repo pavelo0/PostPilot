@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { ArrowUpRight, Eye, TrendingUp, Users } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 
 const periods = ['7 дней', '30 дней', '3 месяца', '6 месяцев']
 
@@ -36,23 +38,26 @@ export function AnalyticsDashboardPage() {
     <div className="max-w-5xl space-y-5">
       <div className="w-fit rounded-lg bg-secondary p-1">
         {periods.map((periodItem) => (
-          <button
+          <Button
             key={periodItem}
+            type="button"
             onClick={() => setPeriod(periodItem)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            variant="ghost"
+            size="sm"
+            className={`h-auto px-3 py-1.5 text-xs font-medium ${
               period === periodItem
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {periodItem}
-          </button>
+          </Button>
         ))}
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className="rounded-xl border border-border bg-card p-5">
+          <Card key={kpi.label} className="p-5">
             <p className="mb-3 text-xs font-medium text-muted-foreground">{kpi.label}</p>
             <p className="mb-1 text-2xl font-bold tabular-nums">{kpi.value}</p>
             <div className="flex items-center gap-1.5">
@@ -65,12 +70,12 @@ export function AnalyticsDashboardPage() {
               </span>
               <span className="text-xs text-muted-foreground">{kpi.sub}</span>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="overflow-hidden rounded-xl border border-border bg-card lg:col-span-2">
+        <Card className="overflow-hidden lg:col-span-2">
           <div className="border-b border-border px-5 py-4">
             <h2 className="text-sm font-semibold">Просмотры по дням</h2>
             <p className="text-xs text-muted-foreground">Охват публикаций за выбранный период</p>
@@ -96,9 +101,9 @@ export function AnalyticsDashboardPage() {
               ))}
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <Card className="overflow-hidden">
           <div className="border-b border-border px-5 py-4">
             <h2 className="text-sm font-semibold">Рост аудитории</h2>
           </div>
@@ -129,10 +134,10 @@ export function AnalyticsDashboardPage() {
               )
             })}
           </div>
-        </div>
+        </Card>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <Card className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <h2 className="text-sm font-semibold">Лучшие посты</h2>
           <span className="text-xs text-muted-foreground">по просмотрам</span>
@@ -163,7 +168,7 @@ export function AnalyticsDashboardPage() {
             </div>
           ))}
         </div>
-      </div>
+      </Card>
     </div>
   )
 }

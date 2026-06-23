@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
 
 type PricingPlan = {
   name: string
@@ -82,15 +83,16 @@ export function LandingPricingSection() {
               }`}
             >
               {plan.featured && (
-                <span
-                  className="mb-4 inline-block rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest"
+                <Badge
+                  variant="secondary"
+                  className="mb-4 inline-flex h-auto rounded-md px-2.5 py-1 text-[11px] font-semibold uppercase tracking-widest"
                   style={{
                     background: 'oklch(0.420 0.095 200 / 0.10)',
                     color: 'oklch(0.420 0.095 200)',
                   }}
                 >
                   Популярный
-                </span>
+                </Badge>
               )}
 
               <div className="mb-6">
