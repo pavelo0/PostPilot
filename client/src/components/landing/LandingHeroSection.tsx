@@ -1,9 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-/**
- * Hero section for landing page.
- */
 export function LandingHeroSection() {
   return (
     <section className="px-6 pb-28 pt-24">

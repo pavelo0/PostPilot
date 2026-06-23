@@ -25,9 +25,6 @@ const workflowSteps = [
   },
 ]
 
-/**
- * Explains how users work with the product step by step.
- */
 export function LandingWorkflowSection() {
   return (
     <section id="workflow" className="border-t border-border bg-secondary/30 px-6 py-24">

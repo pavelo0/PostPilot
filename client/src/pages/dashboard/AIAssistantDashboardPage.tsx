@@ -1,8 +1,5 @@
-'use client'
-
 import { useState } from 'react'
-import { Sparkles, Copy, RefreshCw, Send, ChevronDown } from 'lucide-react'
-import { Textarea } from '@/components/ui/textarea'
+import { ChevronDown, Copy, RefreshCw, Send, Sparkles } from 'lucide-react'
 
 const tones = ['Нейтральный', 'Экспертный', 'Неформальный', 'Продающий', 'Вдохновляющий']
 
@@ -23,93 +20,91 @@ const generated = `Многие думают, что для успешного T
 
 Выберите ритм, который вы можете поддерживать месяцами — и придерживайтесь его.`
 
-export default function AIAssistantPage() {
+export function AIAssistantDashboardPage() {
   const [input, setInput] = useState('')
   const [tone, setTone] = useState('Нейтральный')
   const [result, setResult] = useState(generated)
-  const [loading, setLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleGenerate = async () => {
-    if (!input.trim()) return
-    setLoading(true)
-    await new Promise((r) => setTimeout(r, 1200))
-    setLoading(false)
+
+  const handleGenerate = async (): Promise<void> => {
+    if (!input.trim()) {
+      return
+    }
+
+    setIsLoading(true)
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+    setIsLoading(false)
     setResult(generated)
   }
 
   return (
     <div className="max-w-4xl space-y-5">
-      <div className="grid lg:grid-cols-[1fr_280px] gap-5">
-        {/* Main editor */}
+      <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
         <div className="space-y-3">
-          {/* Tone selector */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-medium text-muted-foreground mr-1">Тон:</span>
-            {tones.map((t) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-medium text-muted-foreground">Тон:</span>
+            {tones.map((toneItem) => (
               <button
-                key={t}
-                onClick={() => setTone(t)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors border ${
-                  tone === t
+                key={toneItem}
+                onClick={() => setTone(toneItem)}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  tone === toneItem
                     ? 'border-foreground bg-foreground text-background'
-                    : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                    : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
                 }`}
               >
-                {t}
+                {toneItem}
               </button>
             ))}
           </div>
 
-          {/* Input */}
-          <div className="border border-border rounded-xl overflow-hidden bg-card">
-            <Textarea
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(event) => setInput(event.target.value)}
               placeholder="Опишите тему поста или вставьте текст для переработки..."
-              className="min-h-[120px] resize-none border-0 rounded-none text-sm focus-visible:ring-0 bg-transparent px-5 py-4"
+              className="min-h-[120px] w-full resize-none border-0 bg-transparent px-5 py-4 text-sm outline-none"
             />
-            <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-secondary/20">
+            <div className="flex items-center justify-between border-t border-border bg-secondary/20 px-4 py-3">
               <span className="text-xs text-muted-foreground">{input.length} символов</span>
               <button
                 onClick={handleGenerate}
-                disabled={loading || !input.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-background transition-opacity disabled:opacity-50"
+                disabled={isLoading || !input.trim()}
+                className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-background transition-opacity disabled:opacity-50"
                 style={{ background: 'oklch(0.420 0.095 200)' }}
               >
-                {loading ? (
-                  <RefreshCw size={14} className="animate-spin" />
-                ) : (
-                  <Sparkles size={14} />
-                )}
-                {loading ? 'Генерируем...' : 'Сгенерировать'}
+                {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                {isLoading ? 'Генерируем...' : 'Сгенерировать'}
               </button>
             </div>
           </div>
 
-          {/* Output */}
-          {result && (
-            <div className="border border-border rounded-xl overflow-hidden bg-card">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Результат</span>
+          {result ? (
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+                <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  Результат
+                </span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setResult('')}
-                    className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                     title="Сгенерировать ещё раз"
                   >
                     <RefreshCw size={13} />
                   </button>
                   <button
                     onClick={() => navigator.clipboard.writeText(result)}
-                    className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                     title="Скопировать"
                   >
                     <Copy size={13} />
                   </button>
                   <button
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium text-background ml-1 transition-opacity hover:opacity-85"
+                    className="ml-1 inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-85"
                     style={{ background: 'oklch(0.130 0.010 255)' }}
-                    title="Опубликовать"
+                    title="Отправить в посты"
                   >
                     <Send size={12} />
                     В посты
@@ -119,32 +114,35 @@ export default function AIAssistantPage() {
               <div className="px-5 py-4">
                 <p className="text-sm leading-relaxed whitespace-pre-line text-foreground">{result}</p>
               </div>
-              <div className="px-5 py-3 border-t border-border bg-secondary/20 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">{result.length} символов · ~{Math.ceil(result.split(' ').length / 200)} мин чтения</span>
-                <button className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+              <div className="flex items-center justify-between border-t border-border bg-secondary/20 px-5 py-3">
+                <span className="text-xs text-muted-foreground">
+                  {result.length} символов · ~{Math.ceil(result.split(' ').length / 200)} мин чтения
+                </span>
+                <button className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
                   Другой вариант <ChevronDown size={11} />
                 </button>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Prompt suggestions */}
         <div className="space-y-3">
-          <div className="border border-border rounded-xl overflow-hidden bg-card">
-            <div className="px-4 py-3.5 border-b border-border">
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <div className="border-b border-border px-4 py-3.5">
               <h3 className="text-sm font-semibold">Шаблоны промптов</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Нажмите, чтобы вставить</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Нажмите, чтобы вставить</p>
             </div>
-            <div className="p-2 space-y-1">
-              {prompts.map((p) => (
+            <div className="space-y-1 p-2">
+              {prompts.map((prompt) => (
                 <button
-                  key={p.label}
-                  onClick={() => setInput(p.text)}
-                  className="w-full text-left px-3 py-2.5 rounded-md text-sm hover:bg-secondary transition-colors"
+                  key={prompt.label}
+                  onClick={() => setInput(prompt.text)}
+                  className="w-full rounded-md px-3 py-2.5 text-left transition-colors hover:bg-secondary"
                 >
-                  <span className="font-medium text-foreground text-xs block">{p.label}</span>
-                  <span className="text-xs text-muted-foreground truncate block mt-0.5">{p.text}</span>
+                  <span className="block text-xs font-medium text-foreground">{prompt.label}</span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {prompt.text}
+                  </span>
                 </button>
               ))}
             </div>

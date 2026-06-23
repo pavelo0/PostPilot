@@ -4,9 +4,6 @@ import { LandingHeroSection } from '@/components/landing/LandingHeroSection'
 import { LandingPricingSection } from '@/components/landing/LandingPricingSection'
 import { LandingWorkflowSection } from '@/components/landing/LandingWorkflowSection'
 
-/**
- * Marketing home page content rendered inside the landing layout.
- */
 export function LandingPage() {
   return (
     <>

@@ -36,14 +36,14 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {}
       <aside
         className={cn(
           'hidden lg:flex shrink-0 flex-col border-r border-border bg-background z-40 transition-[width] duration-200 sticky top-0 h-screen overflow-y-auto',
           collapsed ? 'w-[56px]' : 'w-[216px]'
         )}
       >
-        {/* Logo */}
+        {}
         <div className={cn('h-14 flex items-center shrink-0 border-b border-border', collapsed ? 'justify-center' : 'px-4 justify-between')}>
           {!collapsed && (
             <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
@@ -64,7 +64,7 @@ export function Sidebar() {
           </button>
         </div>
 
-        {/* Nav items */}
+        {}
         <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
           {nav.map(({ icon: Icon, label, href }) => (
             <Link
@@ -88,7 +88,7 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {/* Bottom */}
+        {}
         <div className="border-t border-border py-2 px-2 space-y-0.5 shrink-0">
           <Link
             href="/dashboard/settings"
@@ -117,7 +117,7 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Mobile bottom nav */}
+      {}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background flex safe-bottom">
         {[...nav.slice(0, 4), { icon: Settings, label: 'Ещё', href: '/dashboard/settings' }].map(({ icon: Icon, label, href }) => (
           <Link

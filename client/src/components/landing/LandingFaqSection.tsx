@@ -39,9 +39,6 @@ const faqItems: FaqItem[] = [
   },
 ]
 
-/**
- * FAQ accordion section for landing page.
- */
 export function LandingFaqSection() {
   const [openedIndex, setOpenedIndex] = useState<number | null>(0)
 
