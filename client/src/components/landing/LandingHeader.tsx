@@ -2,6 +2,7 @@ import logo from '@/assets/logo.svg';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 const navLinks = [
 	{ label: 'Возможности', href: '#features' },
@@ -48,18 +49,20 @@ export function LandingHeader() {
 				</nav>
 
 				<div className="hidden items-center gap-3 md:flex">
-					<Link
-						to="/login"
-						className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+					<Button
+						asChild
+						variant="ghost"
+						size="sm"
 					>
-						Войти
-					</Link>
-					<Link
-						to="/register"
-						className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/85"
+						<Link to="/login">Войти</Link>
+					</Button>
+					<Button
+						asChild
+						variant="primary"
+						size="md"
 					>
-						Начать бесплатно
-					</Link>
+						<Link to="/register">Начать бесплатно</Link>
+					</Button>
 				</div>
 
 				<button
@@ -84,18 +87,20 @@ export function LandingHeader() {
 						</a>
 					))}
 					<div className="flex flex-col gap-2 pt-3">
-						<Link
-							to="/login"
-							className="rounded-md border border-border py-2.5 text-center text-sm transition-colors hover:bg-secondary"
+						<Button
+							asChild
+							variant="outline"
+							size="md"
 						>
-							Войти
-						</Link>
-						<Link
-							to="/register"
-							className="rounded-md bg-foreground py-2.5 text-center text-sm font-medium text-background transition-colors hover:bg-foreground/85"
+							<Link to="/login">Войти</Link>
+						</Button>
+						<Button
+							asChild
+							variant="primary"
+							size="md"
 						>
-							Начать бесплатно
-						</Link>
+							<Link to="/register">Начать бесплатно</Link>
+						</Button>
 					</div>
 				</div>
 			)}
