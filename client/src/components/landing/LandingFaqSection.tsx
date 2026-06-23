@@ -1,5 +1,9 @@
-import { useState } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 
 type FaqItem = {
   question: string
@@ -40,12 +44,6 @@ const faqItems: FaqItem[] = [
 ]
 
 export function LandingFaqSection() {
-  const [openedIndex, setOpenedIndex] = useState<number | null>(0)
-
-  const toggleItem = (index: number): void => {
-    setOpenedIndex((currentValue) => (currentValue === index ? null : index))
-  }
-
   return (
     <section id="faq" className="border-t border-border bg-secondary/30 px-6 py-24">
       <div className="mx-auto max-w-6xl">
@@ -58,31 +56,14 @@ export function LandingFaqSection() {
           </h2>
         </div>
 
-        <div className="max-w-2xl space-y-2">
-          {faqItems.map((faqItem, index) => (
-            <div
-              key={faqItem.question}
-              className="overflow-hidden rounded-xl border border-border bg-background"
-            >
-              <button
-                onClick={() => toggleItem(index)}
-                className="flex w-full items-center justify-between px-6 py-5 text-left transition-colors hover:bg-secondary/40"
-              >
-                <span className="pr-4 text-sm font-medium">{faqItem.question}</span>
-                <span className="shrink-0 text-muted-foreground">
-                  {openedIndex === index ? <Minus size={15} /> : <Plus size={15} />}
-                </span>
-              </button>
-              {openedIndex === index ? (
-                <div className="px-6 pb-5">
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {faqItem.answer}
-                  </p>
-                </div>
-              ) : null}
-            </div>
+        <Accordion type="single" collapsible defaultValue={faqItems[0]?.question} className="max-w-2xl space-y-2">
+          {faqItems.map((faqItem) => (
+            <AccordionItem key={faqItem.question} value={faqItem.question}>
+              <AccordionTrigger>{faqItem.question}</AccordionTrigger>
+              <AccordionContent>{faqItem.answer}</AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
+        </Accordion>
       </div>
     </section>
   )

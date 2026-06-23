@@ -65,13 +65,16 @@ export function LandingHeader() {
 					</Button>
 				</div>
 
-				<button
-					className="p-1.5 text-muted-foreground hover:text-foreground md:hidden"
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon-sm"
+					className="h-auto w-auto p-1.5 text-muted-foreground hover:text-foreground md:hidden"
 					onClick={() => setIsMenuOpen(value => !value)}
 					aria-label="Меню"
 				>
 					{isMenuOpen ? <X size={20} /> : <Menu size={20} />}
-				</button>
+				</Button>
 			</div>
 
 			{isMenuOpen && (

@@ -1,6 +1,8 @@
 import { Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -31,11 +33,11 @@ export function LoginPage() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <label className="block space-y-1.5">
           <span className="text-sm font-medium">Email</span>
-          <input
+          <Input
             type="email"
             placeholder="you@example.com"
             required
-            className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus-visible:ring-1"
+            className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
             style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
           />
         </label>
@@ -52,32 +54,35 @@ export function LoginPage() {
           </div>
 
           <div className="relative">
-            <input
+            <Input
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               required
-              className="h-10 w-full rounded-md border border-border bg-background px-3 pr-10 text-sm outline-none transition focus-visible:ring-1"
+              className="h-10 rounded-md px-3 pr-10 text-sm focus-visible:ring-1"
               style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
             />
-            <button
+            <Button
               type="button"
               onClick={() => setShowPassword((value) => !value)}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-1/2 right-1 -translate-y-1/2"
               aria-label="Переключить видимость пароля"
             >
               {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
+            </Button>
           </div>
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={isLoading}
-          className="h-10 w-full rounded-md text-sm font-medium text-background transition-opacity disabled:opacity-60"
-          style={{ background: 'oklch(0.130 0.010 255)' }}
+          variant="primary"
+          size="md"
+          className="h-10 w-full disabled:opacity-60"
         >
           {isLoading ? 'Входим...' : 'Войти'}
-        </button>
+        </Button>
       </form>
     </div>
   )

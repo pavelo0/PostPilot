@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CheckCircle2, ChevronLeft, ChevronRight, Clock, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 
 type ScheduledPost = {
   title: string
@@ -93,33 +95,42 @@ export function CalendarDashboardPage() {
   return (
     <div className="max-w-5xl space-y-5">
       <div className="flex items-center justify-end">
-        <button
-          className="inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium text-background transition-opacity hover:opacity-85"
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          className="h-9 px-4 transition-opacity hover:opacity-85"
           style={{ background: 'oklch(0.130 0.010 255)' }}
         >
           <Plus size={14} />
           Запланировать пост
-        </button>
+        </Button>
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_260px]">
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <button
+            <Button
+              type="button"
               onClick={handlePreviousMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              variant="ghost"
+              size="icon-sm"
+              className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <ChevronLeft size={16} />
-            </button>
+            </Button>
             <h2 className="text-sm font-semibold">
               {months[month]} {year}
             </h2>
-            <button
+            <Button
+              type="button"
               onClick={handleNextMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              variant="ghost"
+              size="icon-sm"
+              className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <ChevronRight size={16} />
-            </button>
+            </Button>
           </div>
 
           <div className="grid grid-cols-7 border-b border-border">
@@ -175,9 +186,9 @@ export function CalendarDashboardPage() {
               )
             })}
           </div>
-        </div>
+        </Card>
 
-        <div className="h-fit overflow-hidden rounded-xl border border-border bg-card">
+        <Card className="h-fit overflow-hidden">
           <div className="border-b border-border px-5 py-4">
             <h3 className="text-sm font-semibold">Запланировано</h3>
           </div>
@@ -220,7 +231,7 @@ export function CalendarDashboardPage() {
               </div>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   )

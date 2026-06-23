@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { ChevronDown, Copy, RefreshCw, Send, Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
 
 const tones = ['Нейтральный', 'Экспертный', 'Неформальный', 'Продающий', 'Вдохновляющий']
 
@@ -45,70 +48,86 @@ export function AIAssistantDashboardPage() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="mr-1 text-xs font-medium text-muted-foreground">Тон:</span>
             {tones.map((toneItem) => (
-              <button
+              <Button
                 key={toneItem}
+                type="button"
                 onClick={() => setTone(toneItem)}
-                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                variant="ghost"
+                size="sm"
+                className={`h-auto border px-3 py-1.5 text-xs font-medium ${
                   tone === toneItem
                     ? 'border-foreground bg-foreground text-background'
                     : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
                 }`}
               >
                 {toneItem}
-              </button>
+              </Button>
             ))}
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <textarea
+          <Card className="overflow-hidden">
+            <Textarea
+              variant="embedded"
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder="Опишите тему поста или вставьте текст для переработки..."
-              className="min-h-[120px] w-full resize-none border-0 bg-transparent px-5 py-4 text-sm outline-none"
+              className="min-h-[120px] resize-none bg-transparent px-5 py-4 text-sm"
             />
             <div className="flex items-center justify-between border-t border-border bg-secondary/20 px-4 py-3">
               <span className="text-xs text-muted-foreground">{input.length} символов</span>
-              <button
+              <Button
+                type="button"
                 onClick={handleGenerate}
                 disabled={isLoading || !input.trim()}
-                className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-background transition-opacity disabled:opacity-50"
+                variant="primary"
+                size="sm"
+                className="h-auto px-4 py-2 text-background transition-opacity disabled:opacity-50"
                 style={{ background: 'oklch(0.420 0.095 200)' }}
               >
                 {isLoading ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
                 {isLoading ? 'Генерируем...' : 'Сгенерировать'}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
 
           {result ? (
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <Card className="overflow-hidden">
               <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
                 <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   Результат
                 </span>
                 <div className="flex items-center gap-1">
-                  <button
+                  <Button
+                    type="button"
                     onClick={() => setResult('')}
-                    className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-foreground"
                     title="Сгенерировать ещё раз"
                   >
                     <RefreshCw size={13} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    type="button"
                     onClick={() => navigator.clipboard.writeText(result)}
-                    className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-foreground"
                     title="Скопировать"
                   >
                     <Copy size={13} />
-                  </button>
-                  <button
-                    className="ml-1 inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-85"
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    className="ml-1 h-auto px-3 py-1.5 text-xs text-background transition-opacity hover:opacity-85"
                     style={{ background: 'oklch(0.130 0.010 255)' }}
                     title="Отправить в посты"
                   >
                     <Send size={12} />
                     В посты
-                  </button>
+                  </Button>
                 </div>
               </div>
               <div className="px-5 py-4">
@@ -118,35 +137,43 @@ export function AIAssistantDashboardPage() {
                 <span className="text-xs text-muted-foreground">
                   {result.length} символов · ~{Math.ceil(result.split(' ').length / 200)} мин чтения
                 </span>
-                <button className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto px-0 text-xs text-muted-foreground hover:text-foreground"
+                >
                   Другой вариант <ChevronDown size={11} />
-                </button>
+                </Button>
               </div>
-            </div>
+            </Card>
           ) : null}
         </div>
 
         <div className="space-y-3">
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <Card className="overflow-hidden">
             <div className="border-b border-border px-4 py-3.5">
               <h3 className="text-sm font-semibold">Шаблоны промптов</h3>
               <p className="mt-0.5 text-xs text-muted-foreground">Нажмите, чтобы вставить</p>
             </div>
             <div className="space-y-1 p-2">
               {prompts.map((prompt) => (
-                <button
+                <Button
                   key={prompt.label}
+                  type="button"
                   onClick={() => setInput(prompt.text)}
-                  className="w-full rounded-md px-3 py-2.5 text-left transition-colors hover:bg-secondary"
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto w-full flex-col items-start justify-start gap-0 px-3 py-2.5 text-left hover:bg-secondary"
                 >
                   <span className="block text-xs font-medium text-foreground">{prompt.label}</span>
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                     {prompt.text}
                   </span>
-                </button>
+                </Button>
               ))}
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

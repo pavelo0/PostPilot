@@ -13,6 +13,7 @@ import { DashboardOverviewPage } from '@/pages/dashboard/DashboardOverviewPage'
 import { DraftsDashboardPage } from '@/pages/dashboard/DraftsDashboardPage'
 import { PostsDashboardPage } from '@/pages/dashboard/PostsDashboardPage'
 import { SettingsDashboardPage } from '@/pages/dashboard/SettingsDashboardPage'
+import { DesignPage } from '@/pages/DesignPage'
 import { LandingPage } from '@/pages/LandingPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { SubscribePage } from '@/pages/SubscribePage'
@@ -32,6 +33,7 @@ function App() {
         </Route>
 
         <Route path="/subscribe" element={<SubscribePage />} />
+        <Route path="/design" element={<DesignPage />} />
 
         <Route path="/dashboard" element={<ServiceLayout />}>
           <Route index element={<DashboardOverviewPage />} />

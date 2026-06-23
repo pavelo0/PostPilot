@@ -10,6 +10,8 @@ import {
   Users,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 
 type RecentPost = {
   title: string
@@ -44,7 +46,7 @@ export function DashboardOverviewPage() {
     <div className="max-w-5xl space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map(({ label, value, delta, up, icon: Icon }) => (
-          <div key={label} className="rounded-xl border border-border bg-card p-5">
+          <Card key={label} className="p-5">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">{label}</span>
               <div className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary">
@@ -61,20 +63,27 @@ export function DashboardOverviewPage() {
               {up !== null ? <TrendingUp size={11} className={up ? '' : 'rotate-180'} /> : null}
               {delta}
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="overflow-hidden rounded-xl border border-border bg-card lg:col-span-2">
+        <Card className="overflow-hidden lg:col-span-2">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="text-sm font-semibold">Последние публикации</h2>
-            <Link
-              to="/dashboard/posts"
-              className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Все посты <ArrowUpRight size={12} />
-            </Link>
+            <div className="flex items-center gap-1">
+              <Link
+                to="/dashboard/posts"
+                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Все посты <ArrowUpRight size={12} />
+              </Link>
+              <Button asChild variant="ghost" size="icon-sm" aria-label="Открыть все посты">
+                <Link to="/dashboard/posts">
+                  <ArrowUpRight size={12} />
+                </Link>
+              </Button>
+            </div>
           </div>
           <div className="divide-y divide-border">
             {recentPosts.map((post) => {
@@ -107,9 +116,9 @@ export function DashboardOverviewPage() {
               )
             })}
           </div>
-        </div>
+        </Card>
 
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <Card className="overflow-hidden">
           <div className="border-b border-border px-5 py-4">
             <h2 className="text-sm font-semibold">Быстрые действия</h2>
           </div>
@@ -134,7 +143,7 @@ export function DashboardOverviewPage() {
               </Link>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   )
