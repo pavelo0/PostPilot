@@ -164,6 +164,11 @@ export const login = async (body: LoginRequest): Promise<AuthResponse> =>
     body: JSON.stringify(body),
   })
 
+export const getMe = async (): Promise<AuthResponse> =>
+  request<AuthResponse>('/api/auth/me', {
+    method: 'GET',
+  })
+
 export const logout = async (): Promise<{ success: true }> =>
   request<{ success: true }>('/api/auth/logout', {
     method: 'POST',
