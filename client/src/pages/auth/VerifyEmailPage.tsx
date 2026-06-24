@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { setAuthenticatedUser } from '@/store/auth.slice';
+import { useAppDispatch } from '@/store/hooks';
 import {
 	ApiError,
 	resendRegisterCode,
@@ -24,6 +26,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 export function VerifyEmailPage() {
 	const navigate = useNavigate();
+	const dispatch = useAppDispatch();
 	const [searchParams] = useSearchParams();
 	const initialEmail = useMemo(
 		() => (searchParams.get('email') ?? '').trim().toLowerCase(),
@@ -159,10 +162,11 @@ export function VerifyEmailPage() {
 		setIsLoading(true);
 		setSubmitError(null);
 		try {
-			await verifyRegister({
+			const response = await verifyRegister({
 				email: initialEmail,
 				code: validationResult.data.code
 			});
+			dispatch(setAuthenticatedUser(response.user));
 			navigate('/dashboard');
 		} catch (error) {
 			if (error instanceof ApiError) {

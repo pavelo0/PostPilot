@@ -5,9 +5,11 @@ import {
   type CSSProperties,
   type FormEvent,
 } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { setAuthenticatedUser } from '@/store/auth.slice'
+import { useAppDispatch } from '@/store/hooks'
 import { ApiError, login, type ApiValidationError } from '@/utils/auth/auth.api'
 import {
   loginSchema,
@@ -17,6 +19,8 @@ import {
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
+  const [searchParams] = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -72,8 +76,9 @@ export function LoginPage() {
     setSubmitError(null)
     setRequiresVerification(false)
     try {
-      await login(validationResult.data)
-      navigate('/dashboard')
+      const response = await login(validationResult.data)
+      dispatch(setAuthenticatedUser(response.user))
+      navigate(resolveRedirectPath(searchParams.get('redirect')), { replace: true })
     } catch (error) {
       if (error instanceof ApiError) {
         const nextErrors = error.validationErrors.reduce<LoginFormErrors>(
@@ -188,6 +193,21 @@ export function LoginPage() {
       </form>
     </div>
   )
+}
+
+/**
+ * Keeps login redirects on local routes only.
+ */
+const resolveRedirectPath = (rawRedirect: string | null): string => {
+  if (!rawRedirect || !rawRedirect.startsWith('/')) {
+    return '/dashboard'
+  }
+
+  if (rawRedirect.startsWith('//')) {
+    return '/dashboard'
+  }
+
+  return rawRedirect
 }
 
 const isLoginFormField = (field: unknown): field is keyof LoginFormData =>

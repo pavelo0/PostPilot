@@ -15,6 +15,8 @@ import {
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { clearAuthState } from '@/store/auth.slice';
+import { useAppDispatch } from '@/store/hooks';
 import { logout } from '@/utils/auth/auth.api';
 
 type NavItem = {
@@ -44,6 +46,7 @@ function isItemActive(pathname: string, href: string): boolean {
 export function ServiceSidebar() {
 	const location = useLocation();
 	const navigate = useNavigate();
+	const dispatch = useAppDispatch();
 	const [collapsed, setCollapsed] = useState(false);
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -55,8 +58,10 @@ export function ServiceSidebar() {
 		setIsLoggingOut(true);
 		try {
 			await logout();
+			dispatch(clearAuthState());
 			navigate('/login');
 		} catch {
+			dispatch(clearAuthState());
 			navigate('/login');
 		} finally {
 			setIsLoggingOut(false);
