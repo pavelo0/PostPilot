@@ -10,9 +10,6 @@ import { IS_PUBLIC_KEY } from '../common/public.decorator';
 import { AuthService } from './auth.service';
 import type { AuthenticatedRequest } from './auth.types';
 
-/**
- * Protects all routes by default and resolves user from session cookie.
- */
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(

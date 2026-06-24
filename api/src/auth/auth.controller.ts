@@ -4,16 +4,10 @@ import { Public } from '../common/public.decorator';
 import { AuthService } from './auth.service';
 import type { AuthResponse, AuthenticatedRequest } from './auth.types';
 
-/**
- * HTTP endpoints for auth and session lifecycle.
- */
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  /**
-   * Registers user and sets session cookie.
-   */
   @Public()
   @Post('register')
   async register(
@@ -29,9 +23,6 @@ export class AuthController {
     return { user };
   }
 
-  /**
-   * Logs in user and sets session cookie.
-   */
   @Public()
   @Post('login')
   async login(
@@ -47,9 +38,6 @@ export class AuthController {
     return { user };
   }
 
-  /**
-   * Clears active session for current cookie.
-   */
   @Post('logout')
   async logout(
     @Req() request: AuthenticatedRequest,
@@ -63,9 +51,6 @@ export class AuthController {
     return { success: true };
   }
 
-  /**
-   * Returns current authenticated user.
-   */
   @Get('me')
   me(@Req() request: AuthenticatedRequest): AuthResponse {
     return { user: request.authUser! };

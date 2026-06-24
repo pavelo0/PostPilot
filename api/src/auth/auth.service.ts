@@ -6,11 +6,15 @@ import {
 import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import type { CookieOptions } from 'express';
+import type { ZodType } from 'zod';
 import { PrismaService } from '../prisma/prisma.service';
 import { SESSION_COOKIE_NAME, SESSION_TTL_DAYS } from './auth.constants';
 import {
   authCredentialsSchema,
   type AuthCredentialsInput,
+  formatZodValidationErrors,
+  registerSchema,
+  type RegisterInput,
 } from './auth.schemas';
 import type { AuthUser } from './auth.types';
 
@@ -19,21 +23,17 @@ type SessionPayload = {
   expiresAt: Date;
 };
 
-/**
- * Handles user authentication and cookie-backed sessions.
- */
 @Injectable()
 export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Registers user and creates active session.
-   */
   async register(
     payload: unknown,
   ): Promise<{ user: AuthUser; token: string; expiresAt: Date }> {
-    const credentials = this.parseCredentials(payload);
-    const email = credentials.email.trim().toLowerCase();
+    const registerInput = this.parseRegisterInput(payload);
+    const email = registerInput.email.trim().toLowerCase();
+    const firstName = registerInput.firstName.trim();
+    const lastName = registerInput.lastName?.trim() || null;
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -44,10 +44,21 @@ export class AuthService {
       throw new BadRequestException('Email is already registered');
     }
 
-    const passwordHash = await hash(credentials.password, 12);
+    const passwordHash = await hash(registerInput.password, 12);
     const user = await this.prisma.user.create({
-      data: { email, passwordHash },
-      select: { id: true, email: true, createdAt: true },
+      data: {
+        email,
+        passwordHash,
+        firstName,
+        lastName,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        createdAt: true,
+      },
     });
 
     const session = await this.createSession(user.id);
@@ -59,9 +70,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * Authenticates existing user and creates session.
-   */
   async login(
     payload: unknown,
   ): Promise<{ user: AuthUser; token: string; expiresAt: Date }> {
@@ -73,6 +81,8 @@ export class AuthService {
       select: {
         id: true,
         email: true,
+        firstName: true,
+        lastName: true,
         passwordHash: true,
         createdAt: true,
       },
@@ -99,9 +109,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * Deletes current session token if present.
-   */
   async logout(sessionToken: string | undefined): Promise<void> {
     if (!sessionToken) {
       return;
@@ -112,9 +119,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Returns authenticated user for valid session token.
-   */
   async getUserBySessionToken(
     sessionToken: string | undefined,
   ): Promise<AuthUser | null> {
@@ -132,6 +136,8 @@ export class AuthService {
           select: {
             id: true,
             email: true,
+            firstName: true,
+            lastName: true,
             createdAt: true,
           },
         },
@@ -145,9 +151,6 @@ export class AuthService {
     return this.mapUser(session.user);
   }
 
-  /**
-   * Reads user from request cookie and throws on unauthorized access.
-   */
   async requireUser(sessionToken: string | undefined): Promise<AuthUser> {
     const user = await this.getUserBySessionToken(sessionToken);
     if (!user) {
@@ -156,9 +159,6 @@ export class AuthService {
     return user;
   }
 
-  /**
-   * Returns cookie options for active auth session.
-   */
   getSessionCookieOptions(expiresAt: Date): CookieOptions {
     return {
       httpOnly: true,
@@ -169,9 +169,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * Returns cookie options for clearing auth session.
-   */
   getClearSessionCookieOptions(): CookieOptions {
     return {
       httpOnly: true,
@@ -181,21 +178,27 @@ export class AuthService {
     };
   }
 
-  /**
-   * Returns project-wide cookie name.
-   */
   getSessionCookieName(): string {
     return SESSION_COOKIE_NAME;
   }
 
-  private parseCredentials(payload: unknown): AuthCredentialsInput {
-    const parsed = authCredentialsSchema.safeParse(payload);
+  private parsePayload<T>(schema: ZodType<T>, payload: unknown): T {
+    const parsed = schema.safeParse(payload);
     if (!parsed.success) {
-      throw new BadRequestException(
-        parsed.error.issues[0]?.message ?? 'Invalid body',
-      );
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: formatZodValidationErrors(parsed.error),
+      });
     }
     return parsed.data;
+  }
+
+  private parseCredentials(payload: unknown): AuthCredentialsInput {
+    return this.parsePayload(authCredentialsSchema, payload);
+  }
+
+  private parseRegisterInput(payload: unknown): RegisterInput {
+    return this.parsePayload(registerSchema, payload);
   }
 
   private async createSession(userId: string): Promise<SessionPayload> {
@@ -227,11 +230,15 @@ export class AuthService {
   private mapUser(user: {
     id: string;
     email: string;
+    firstName: string | null;
+    lastName: string | null;
     createdAt: Date;
   }): AuthUser {
     return {
       id: user.id,
       email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
       createdAt: user.createdAt.toISOString(),
     };
   }
