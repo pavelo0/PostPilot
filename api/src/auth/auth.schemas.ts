@@ -10,8 +10,22 @@ export const registerSchema = authCredentialsSchema.extend({
   lastName: z.string().trim().max(100).optional(),
 });
 
+export const registerVerifySchema = z.object({
+  email: z.string().email().max(255),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/),
+});
+
+export const registerResendSchema = z.object({
+  email: z.string().email().max(255),
+});
+
 export type AuthCredentialsInput = z.infer<typeof authCredentialsSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type RegisterVerifyInput = z.infer<typeof registerVerifySchema>;
+export type RegisterResendInput = z.infer<typeof registerResendSchema>;
 
 export type ValidationErrorItem = {
   field: string;

@@ -13,8 +13,9 @@ import {
 	Sparkles
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { logout } from '@/utils/auth/auth.api';
 
 type NavItem = {
 	icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -42,7 +43,25 @@ function isItemActive(pathname: string, href: string): boolean {
 
 export function ServiceSidebar() {
 	const location = useLocation();
+	const navigate = useNavigate();
 	const [collapsed, setCollapsed] = useState(false);
+	const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+	const handleLogout = async (): Promise<void> => {
+		if (isLoggingOut) {
+			return;
+		}
+
+		setIsLoggingOut(true);
+		try {
+			await logout();
+			navigate('/login');
+		} catch {
+			navigate('/login');
+		} finally {
+			setIsLoggingOut(false);
+		}
+	};
 
 	return (
 		<>
@@ -136,9 +155,12 @@ export function ServiceSidebar() {
 						</Link>
 					</Button>
 					<Button
+						type="button"
 						variant="ghost"
 						size={collapsed ? 'icon' : 'sm'}
 						title={collapsed ? 'Выход' : undefined}
+						disabled={isLoggingOut}
+						onClick={() => void handleLogout()}
 						className={cn(
 							collapsed ? 'mx-auto' : 'w-full justify-start gap-2.5 px-2.5 py-2'
 						)}
@@ -147,7 +169,9 @@ export function ServiceSidebar() {
 							size={15}
 							className="shrink-0"
 						/>
-						{!collapsed ? <span>Выход</span> : null}
+						{!collapsed ? (
+							<span>{isLoggingOut ? 'Выходим...' : 'Выход'}</span>
+						) : null}
 					</Button>
 				</div>
 			</aside>

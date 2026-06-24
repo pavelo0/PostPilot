@@ -10,6 +10,11 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  ApiError,
+  register,
+  type ApiValidationError,
+} from '@/utils/auth/auth.api'
+import {
   registerSchema,
   type RegisterFormData,
   type RegisterFormErrors,
@@ -24,6 +29,7 @@ export function RegisterPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [formData, setFormData] = useState<RegisterFormData>({
     firstName: '',
     lastName: '',
@@ -57,6 +63,7 @@ export function RegisterPage() {
         ...currentErrors,
         [field]: undefined,
       }))
+      setSubmitError(null)
     }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -85,9 +92,33 @@ export function RegisterPage() {
     }
 
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 900))
-    setIsLoading(false)
-    navigate('/login')
+    setSubmitError(null)
+    try {
+      const response = await register(formData)
+      const verificationCode = response.verificationCode
+      const searchParams = new URLSearchParams({
+        email: response.email,
+        resend_in: String(response.resendAvailableInSeconds),
+      })
+      if (verificationCode) {
+        searchParams.set('code_hint', verificationCode)
+      }
+      navigate(`/verify-email?${searchParams.toString()}`)
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const nextErrors = error.validationErrors.reduce<RegisterFormErrors>(
+          (collectedErrors, issue) =>
+            applyValidationErrorToRegisterForm(collectedErrors, issue),
+          {},
+        )
+        setFormErrors(nextErrors)
+        setSubmitError(error.message)
+      } else {
+        setSubmitError('Не удалось отправить код подтверждения. Попробуйте снова.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -210,9 +241,38 @@ export function RegisterPage() {
           size="md"
           className="h-10 w-full disabled:opacity-60"
         >
-          {isLoading ? 'Создаем аккаунт...' : 'Зарегистрироваться'}
+          {isLoading ? 'Отправляем код...' : 'Зарегистрироваться'}
         </Button>
+        {submitError ? (
+          <p className="text-center text-xs text-destructive">{submitError}</p>
+        ) : null}
       </form>
     </div>
   )
 }
+
+const applyValidationErrorToRegisterForm = (
+  currentErrors: RegisterFormErrors,
+  issue: ApiValidationError,
+): RegisterFormErrors => {
+  if (!isRegisterFormField(issue.field)) {
+    return currentErrors
+  }
+
+  if (currentErrors[issue.field]) {
+    return currentErrors
+  }
+
+  return {
+    ...currentErrors,
+    [issue.field]: issue.message,
+  }
+}
+
+const isRegisterFormField = (
+  field: string,
+): field is keyof RegisterFormData =>
+  field === 'firstName' ||
+  field === 'lastName' ||
+  field === 'email' ||
+  field === 'password'

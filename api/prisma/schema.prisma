@@ -14,11 +14,13 @@ model User {
   passwordHash String
   firstName    String?
   lastName     String?
+  emailVerifiedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   sessions     Session[]
   posts        Post[]
   channel      Channel?
+  emailVerification EmailVerification?
 }
 
 model Session {
@@ -31,6 +33,23 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
+}
+
+model EmailVerification {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  codeHash              String
+  expiresAt             DateTime
+  attempts              Int      @default(0)
+  sentCount             Int      @default(1)
+  resendWindowStartedAt DateTime @default(now())
+  lastSentAt            DateTime @default(now())
+  verifiedAt            DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([expiresAt])
 }
 
