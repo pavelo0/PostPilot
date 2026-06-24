@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Check, ChevronRight, CreditCard, Lock, Zap } from 'lucide-react'
+import { BrandLogo } from '@/components/BrandLogo'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -94,22 +95,8 @@ export function SubscribePage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="flex h-14 items-center gap-4 border-b border-border px-6">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div
-            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
-            style={{ background: TEAL }}
-          >
-            <svg width="11" height="11" viewBox="0 0 13 13" fill="none">
-              <path
-                d="M1.5 6.5L4.5 9.5L11.5 2.5"
-                stroke="white"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <span className="text-sm font-semibold">PostPilot</span>
+        <Link to="/" aria-label="PostPilot">
+          <BrandLogo size="sm" />
         </Link>
 
         <div className="ml-4 flex items-center gap-1.5 text-xs text-muted-foreground">

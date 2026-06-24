@@ -1,8 +1,7 @@
-import logo from '@/assets/logo.svg';
-import { Menu, X } from 'lucide-react';
+import { BrandLogo } from '@/components/BrandLogo';
+import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 
 const navLinks = [
 	{ label: 'Возможности', href: '#features' },
@@ -14,29 +13,27 @@ const navLinks = [
 export function LandingHeader() {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+	const handleLogoClick = (
+		event: React.MouseEvent<HTMLAnchorElement>
+	): void => {
+		event.preventDefault();
+		setIsMenuOpen(false);
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	};
+
 	return (
 		<header className="fixed top-0 inset-x-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
-			<div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+			<div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 md:grid md:grid-cols-[1fr_auto_1fr]">
 				<Link
 					to="/"
-					className="flex shrink-0 items-center gap-2.5"
+					className="shrink-0 md:justify-self-start"
+					onClick={handleLogoClick}
+					aria-label="PostPilot"
 				>
-					<div
-						className="flex h-7 w-7 items-center justify-center rounded-md"
-						style={{ background: '#fff' }}
-					>
-						<img
-							src={logo}
-							alt="PostPilot"
-							className="h-7 w-7"
-						/>
-					</div>
-					<span className="text-[15px] font-semibold tracking-tight">
-						PostPilot
-					</span>
+					<BrandLogo size="md" />
 				</Link>
 
-				<nav className="hidden items-center gap-7 md:flex">
+				<nav className="hidden items-center gap-7 md:flex md:justify-self-center">
 					{navLinks.map(navLink => (
 						<a
 							key={navLink.href}
@@ -48,7 +45,7 @@ export function LandingHeader() {
 					))}
 				</nav>
 
-				<div className="hidden items-center gap-3 md:flex">
+				<div className="hidden items-center gap-3 md:flex md:justify-self-end">
 					<Button
 						asChild
 						variant="ghost"
@@ -71,14 +68,35 @@ export function LandingHeader() {
 					size="icon-sm"
 					className="h-auto w-auto p-1.5 text-muted-foreground hover:text-foreground md:hidden"
 					onClick={() => setIsMenuOpen(value => !value)}
+					aria-expanded={isMenuOpen}
+					aria-controls="landing-mobile-menu"
 					aria-label="Меню"
 				>
-					{isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+					<span className="relative block h-5 w-5">
+						<span
+							className={`absolute left-0 top-1 block h-[2px] w-5 rounded-full bg-current transition-all duration-300 ${
+								isMenuOpen ? 'top-2.5 rotate-45' : ''
+							}`}
+						/>
+						<span
+							className={`absolute left-0 top-2.5 block h-[2px] w-5 rounded-full bg-current transition-all duration-300 ${
+								isMenuOpen ? 'opacity-0' : ''
+							}`}
+						/>
+						<span
+							className={`absolute left-0 top-4 block h-[2px] w-5 rounded-full bg-current transition-all duration-300 ${
+								isMenuOpen ? 'top-2.5 -rotate-45' : ''
+							}`}
+						/>
+					</span>
 				</Button>
 			</div>
 
 			{isMenuOpen && (
-				<div className="space-y-1 border-t border-border bg-background px-6 py-4 md:hidden">
+				<div
+					id="landing-mobile-menu"
+					className="animate-in slide-in-from-top-2 fade-in space-y-1 border-t border-border bg-background px-6 py-4 duration-300 md:hidden"
+				>
 					{navLinks.map(navLink => (
 						<a
 							key={navLink.href}
