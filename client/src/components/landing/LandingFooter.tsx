@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { BrandLogo } from '@/components/BrandLogo'
 import { Button } from '@/components/ui/button'
 
 const footerColumns = [
@@ -62,22 +63,8 @@ export function LandingFooter() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <div className="mb-4 flex items-center gap-2.5">
-                <div
-                  className="flex h-6 w-6 items-center justify-center rounded-md"
-                  style={{ background: 'oklch(0.420 0.095 200)' }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 13 13" fill="none">
-                    <path
-                      d="M1.5 6.5L4.5 9.5L11.5 2.5"
-                      stroke="white"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-                <span className="text-sm font-semibold">PostPilot</span>
+              <div className="mb-4">
+                <BrandLogo size="sm" />
               </div>
               <p className="text-xs leading-relaxed text-muted-foreground">
                 Платформа управления Telegram-контентом для команд и медиа.

@@ -1,6 +1,6 @@
+import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 
 export function LandingHeroSection() {
 	return (
@@ -11,14 +11,14 @@ export function LandingHeroSection() {
           Платформа для Telegram-команд
         </div> */}
 
-				<h1 className="mb-10 max-w-3xl text-balance text-5xl font-bold leading-[1.08] tracking-tight sm:text-6xl">
+				<h1 className="mb-7 max-w-3xl text-balance text-5xl font-bold leading-[1.08] tracking-tight sm:text-6xl">
 					Управляйте Telegram-каналом{' '}
 					<span style={{ color: 'oklch(0.420 0.095 200)' }}>
 						как медиаактивом
 					</span>
 				</h1>
 
-				<p className="mb-10 max-w-xl text-balance text-lg leading-relaxed text-muted-foreground">
+				<p className="mb-7 max-w-xl text-balance text-lg leading-relaxed text-muted-foreground">
 					PostPilot автоматизирует весь цикл контента: создание,
 					AI-редактирование, планирование, публикацию через бота и аналитику — в
 					одном рабочем пространстве.

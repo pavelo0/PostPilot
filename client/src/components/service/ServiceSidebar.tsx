@@ -1,3 +1,4 @@
+import { BrandLogo } from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
 import {
 	BarChart2,
@@ -60,30 +61,13 @@ export function ServiceSidebar() {
 					{!collapsed ? (
 						<Link
 							to="/dashboard"
-							className="flex min-w-0 items-center gap-2.5"
+							className="min-w-0"
+							aria-label="PostPilot"
 						>
-							<div
-								className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md"
-								style={{ background: 'oklch(0.420 0.095 200)' }}
-							>
-								<svg
-									width="11"
-									height="11"
-									viewBox="0 0 13 13"
-									fill="none"
-								>
-									<path
-										d="M1.5 6.5L4.5 9.5L11.5 2.5"
-										stroke="white"
-										strokeWidth="1.8"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-									/>
-								</svg>
-							</div>
-							<span className="truncate text-[14px] font-semibold">
-								PostPilot
-							</span>
+							<BrandLogo
+								size="sm"
+								className="min-w-0 [&>span:last-child]:truncate"
+							/>
 						</Link>
 					) : null}
 
