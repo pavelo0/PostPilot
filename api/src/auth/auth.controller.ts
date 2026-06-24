@@ -2,7 +2,11 @@ import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { Public } from '../common/public.decorator';
 import { AuthService } from './auth.service';
-import type { AuthResponse, AuthenticatedRequest } from './auth.types';
+import type {
+  AuthResponse,
+  AuthenticatedRequest,
+  RegisterStartResponse,
+} from './auth.types';
 
 @Controller('auth')
 export class AuthController {
@@ -10,11 +14,26 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  async register(
+  async register(@Body() body: unknown): Promise<RegisterStartResponse> {
+    return this.authService.register(body);
+  }
+
+  @Public()
+  @Post('register/resend')
+  async resendRegisterCode(
+    @Body() body: unknown,
+  ): Promise<RegisterStartResponse> {
+    return this.authService.resendRegisterCode(body);
+  }
+
+  @Public()
+  @Post('register/verify')
+  async verifyRegister(
     @Body() body: unknown,
     @Res({ passthrough: true }) response: Response,
   ): Promise<AuthResponse> {
-    const { user, token, expiresAt } = await this.authService.register(body);
+    const { user, token, expiresAt } =
+      await this.authService.verifyRegister(body);
     response.cookie(
       this.authService.getSessionCookieName(),
       token,
