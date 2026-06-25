@@ -1,67 +1,61 @@
-import { useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  AlertCircle,
-  CheckCircle2,
-  Clock,
   FileText,
   MoreHorizontal,
+  Pencil,
   Plus,
   Search,
   Sparkles,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-
-type PostStatus = 'published' | 'scheduled' | 'draft' | 'failed'
-
-type PostItem = {
-  id: number
-  title: string
-  status: PostStatus
-  date: string
-  views: number | null
-}
-
-const posts: PostItem[] = [
-  { id: 1, title: 'Как выбрать тему для Telegram-канала', status: 'published', date: '20 июн 2025', views: 4210 },
-  { id: 2, title: 'Топ-5 ошибок при ведении канала', status: 'published', date: '18 июн 2025', views: 3850 },
-  { id: 3, title: 'Анонс нового формата контента', status: 'scheduled', date: '22 июн 2025', views: null },
-  { id: 4, title: 'Как увеличить охват без рекламы', status: 'draft', date: '—', views: null },
-  { id: 5, title: 'Кейс: рост с нуля до 10 000 подписчиков', status: 'published', date: '14 июн 2025', views: 6120 },
-  { id: 6, title: 'Инструменты для работы с контентом', status: 'failed', date: '12 июн 2025', views: null },
-  { id: 7, title: 'Итоги месяца: что сработало', status: 'draft', date: '—', views: null },
-]
-
-const statuses = {
-  published: {
-    label: 'Опубликовано',
-    icon: CheckCircle2,
-    bg: 'bg-[oklch(0.420_0.095_200)]/10',
-    text: 'text-[oklch(0.380_0.095_200)]',
-  },
-  scheduled: { label: 'Запланировано', icon: Clock, bg: 'bg-blue-50', text: 'text-blue-600' },
-  draft: { label: 'Черновик', icon: FileText, bg: 'bg-secondary', text: 'text-muted-foreground' },
-  failed: { label: 'Ошибка', icon: AlertCircle, bg: 'bg-red-50', text: 'text-red-600' },
-}
+import { useGetPostsQuery, type Post } from '@/store/api/posts-api'
 
 const filters = ['Все', 'Опубликованные', 'Запланированные', 'Черновики']
+
+/**
+ * Formats ISO date into short Russian label for post cards.
+ */
+function formatPostDate(iso: string): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(iso))
+}
+
+/**
+ * Resolves card title from post title or body preview.
+ */
+function getPostTitle(post: Post): string {
+  const normalizedTitle = post.title?.trim()
+  if (normalizedTitle) {
+    return normalizedTitle
+  }
+
+  return post.body.trim().slice(0, 80)
+}
 
 export function PostsDashboardPage() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('Все')
+  const { data: posts = [], isLoading, isError, refetch } = useGetPostsQuery()
 
-  const filteredPosts = posts.filter((post) => {
-    const matchesSearch = post.title.toLowerCase().includes(search.toLowerCase())
-    const matchesFilter =
-      filter === 'Все' ||
-      (filter === 'Опубликованные' && post.status === 'published') ||
-      (filter === 'Запланированные' && post.status === 'scheduled') ||
-      (filter === 'Черновики' && post.status === 'draft')
+  const filteredPosts = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
 
-    return matchesSearch && matchesFilter
-  })
+    if (!normalizedSearch) {
+      return posts
+    }
+
+    return posts.filter((post) => {
+      const title = getPostTitle(post).toLowerCase()
+      const body = post.body.toLowerCase()
+      return title.includes(normalizedSearch) || body.includes(normalizedSearch)
+    })
+  }, [posts, search])
 
   return (
     <div className="w-full space-y-5">
@@ -76,7 +70,7 @@ export function PostsDashboardPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="h-9 rounded-md pl-9 pr-3 text-sm focus-visible:ring-1"
-            style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
+            style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as CSSProperties}
           />
         </div>
 
@@ -106,82 +100,88 @@ export function PostsDashboardPage() {
               AI-генерация
             </Link>
           </Button>
-          <Button variant="primary" size="sm" className="h-9 px-4">
-            <Plus size={14} />
-            Новый пост
+          <Button asChild variant="primary" size="sm" className="h-9 px-4">
+            <Link to="/dashboard/posts/new">
+              <Plus size={14} />
+              Новый пост
+            </Link>
           </Button>
         </div>
       </div>
 
-      <Card className="overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-secondary/30">
-              <th className="px-5 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Заголовок
-              </th>
-              <th className="hidden px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase sm:table-cell">
-                Статус
-              </th>
-              <th className="hidden px-4 py-3 text-left text-xs font-semibold tracking-wide text-muted-foreground uppercase md:table-cell">
-                Дата
-              </th>
-              <th className="hidden px-4 py-3 text-right text-xs font-semibold tracking-wide text-muted-foreground uppercase lg:table-cell">
-                Просмотры
-              </th>
-              <th className="w-10 px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {filteredPosts.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-5 py-12 text-center text-sm text-muted-foreground">
-                  Посты не найдены
-                </td>
-              </tr>
-            ) : (
-              filteredPosts.map((post) => {
-                const status = statuses[post.status]
-                const StatusIcon = status.icon
-                return (
-                  <tr key={post.id} className="transition-colors hover:bg-secondary/20">
-                    <td className="px-5 py-3.5">
-                      <span className="line-clamp-1 font-medium text-foreground">{post.title}</span>
-                    </td>
-                    <td className="hidden px-4 py-3.5 sm:table-cell">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${status.bg} ${status.text}`}
-                      >
-                        <StatusIcon size={11} />
-                        {status.label}
-                      </span>
-                    </td>
-                    <td className="hidden px-4 py-3.5 text-muted-foreground md:table-cell">
-                      {post.date}
-                    </td>
-                    <td className="hidden px-4 py-3.5 text-right tabular-nums lg:table-cell">
-                      {post.views !== null ? post.views.toLocaleString('ru') : '—'}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-7 w-7 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                      >
-                        <MoreHorizontal size={15} />
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-        <div className="border-t border-border bg-secondary/20 px-5 py-3 text-xs text-muted-foreground">
-          {filteredPosts.length} из {posts.length} постов
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card py-20 text-muted-foreground">
+          <FileText size={32} className="opacity-30" />
+          <p className="text-sm">Загружаем посты...</p>
         </div>
-      </Card>
+      ) : isError ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card py-20 text-muted-foreground">
+          <p className="text-sm">Не удалось загрузить посты</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void refetch()}>
+            Повторить
+          </Button>
+        </div>
+      ) : filteredPosts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card py-20 text-muted-foreground">
+          <FileText size={32} className="opacity-30" />
+          <p className="text-sm">Посты не найдены</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {filteredPosts.map((post) => (
+            <article
+              key={post.id}
+              className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all duration-150 hover:border-border/80 hover:shadow-sm"
+            >
+              <div className="flex flex-1 flex-col gap-3 px-5 pt-4 pb-4">
+                <h3 className="line-clamp-2 text-[14px] leading-snug font-semibold text-foreground">
+                  {getPostTitle(post)}
+                </h3>
+
+                <p className="line-clamp-3 flex-1 text-xs leading-relaxed text-muted-foreground">
+                  {post.body}
+                </p>
+
+                <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
+                  <span className="text-[11px] text-muted-foreground">
+                    {formatPostDate(post.createdAt)}
+                  </span>
+
+                  <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      title="Редактировать"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-destructive"
+                      title="Удалить"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      title="Ещё"
+                    >
+                      <MoreHorizontal size={13} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {!isLoading && !isError ? (
+        <p className="text-xs text-muted-foreground">
+          {filteredPosts.length} из {posts.length} постов
+        </p>
+      ) : null}
     </div>
   )
 }

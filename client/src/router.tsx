@@ -18,6 +18,7 @@ import { AnalyticsDashboardPage } from '@/pages/dashboard/AnalyticsDashboardPage
 import { AIAssistantDashboardPage } from '@/pages/dashboard/AIAssistantDashboardPage'
 import { CalendarDashboardPage } from '@/pages/dashboard/CalendarDashboardPage'
 import { ChannelsDashboardPage } from '@/pages/dashboard/ChannelsDashboardPage'
+import { CreatePostDashboardPage } from '@/pages/dashboard/CreatePostDashboardPage'
 import { DashboardOverviewPage } from '@/pages/dashboard/DashboardOverviewPage'
 import { DraftsDashboardPage } from '@/pages/dashboard/DraftsDashboardPage'
 import { PostsDashboardPage } from '@/pages/dashboard/PostsDashboardPage'
@@ -105,6 +106,7 @@ export function AppRouter() {
             <Route path="/dashboard" element={<ServiceLayout />}>
               <Route index element={<DashboardOverviewPage />} />
               <Route path="posts" element={<PostsDashboardPage />} />
+              <Route path="posts/new" element={<CreatePostDashboardPage />} />
               <Route path="ai-assistant" element={<AIAssistantDashboardPage />} />
               <Route path="calendar" element={<CalendarDashboardPage />} />
               <Route path="channels" element={<ChannelsDashboardPage />} />
