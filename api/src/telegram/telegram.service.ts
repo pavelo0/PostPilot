@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Injectable,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import type {
   TelegramChat,
@@ -23,6 +22,7 @@ type TelegramApiResponse<T> = TelegramApiSuccess<T> | TelegramApiError;
 
 type TelegramBotIdentity = {
   id: number;
+  username?: string;
 };
 
 /**
@@ -30,24 +30,13 @@ type TelegramBotIdentity = {
  */
 @Injectable()
 export class TelegramService {
-  private readonly botToken: string;
-  private botId: number | null = null;
-
-  constructor() {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) {
-      throw new InternalServerErrorException(
-        'TELEGRAM_BOT_TOKEN is not configured',
-      );
-    }
-    this.botToken = token;
-  }
+  private readonly botIdByToken = new Map<string, number>();
 
   /**
    * Resolves channel/chat info by @username or numeric chat id.
    */
-  async getChat(chatReference: string): Promise<TelegramChat> {
-    return this.callTelegram<TelegramChat>('getChat', {
+  async getChat(botToken: string, chatReference: string): Promise<TelegramChat> {
+    return this.callTelegram<TelegramChat>(botToken, 'getChat', {
       chat_id: chatReference,
     });
   }
@@ -55,43 +44,56 @@ export class TelegramService {
   /**
    * Returns current bot membership in selected chat.
    */
-  async getBotMembership(chatId: string): Promise<TelegramChatMember> {
-    const botUserId = await this.getBotId();
-    return this.callTelegram<TelegramChatMember>('getChatMember', {
+  async getBotMembership(
+    botToken: string,
+    chatId: string,
+  ): Promise<TelegramChatMember> {
+    const botUserId = await this.getBotId(botToken);
+    return this.callTelegram<TelegramChatMember>(botToken, 'getChatMember', {
       chat_id: chatId,
       user_id: botUserId,
     });
   }
 
   /**
+   * Returns bot identity for provided token.
+   */
+  async getBotIdentity(botToken: string): Promise<TelegramBotIdentity> {
+    return this.callTelegram<TelegramBotIdentity>(botToken, 'getMe', {});
+  }
+
+  /**
    * Sends plain text message to chat.
    */
   async sendMessage(
+    botToken: string,
     chatId: string,
     text: string,
   ): Promise<TelegramSentMessage> {
-    return this.callTelegram<TelegramSentMessage>('sendMessage', {
+    return this.callTelegram<TelegramSentMessage>(botToken, 'sendMessage', {
       chat_id: chatId,
       text,
     });
   }
 
-  private async getBotId(): Promise<number> {
-    if (this.botId !== null) {
-      return this.botId;
+  private async getBotId(botToken: string): Promise<number> {
+    const cachedBotId = this.botIdByToken.get(botToken);
+    if (cachedBotId !== undefined) {
+      return cachedBotId;
     }
 
-    const identity = await this.callTelegram<TelegramBotIdentity>('getMe', {});
-    this.botId = identity.id;
+    const identity = await this.getBotIdentity(botToken);
+    this.botIdByToken.set(botToken, identity.id);
     return identity.id;
   }
 
   private async callTelegram<TResponse>(
+    botToken: string,
     method: string,
     payload: Record<string, number | string>,
   ): Promise<TResponse> {
     const response = await fetch(
-      `https://api.telegram.org/bot${this.botToken}/${method}`,
+      `https://api.telegram.org/bot${botToken}/${method}`,
       {
         method: 'POST',
         headers: {

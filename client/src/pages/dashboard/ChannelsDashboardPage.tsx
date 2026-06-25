@@ -1,77 +1,176 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
   CheckCircle2,
-  ExternalLink,
   Plus,
   Radio,
   RefreshCw,
-  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { ApiError } from '@/utils/auth/auth.api'
+import {
+  connectChannel,
+  getBotSetup,
+  type BotSetup,
+  type ChannelBotAdminStatus,
+} from '@/utils/bot/bot.api'
 
-type Channel = {
-  id: number
-  name: string
-  title: string
-  subscribers: number
-  status: 'active' | 'error'
-  botStatus: 'connected' | 'disconnected'
-  lastPost: string
-  postsMonth: number
+const channelStatusConfig: Record<
+  ChannelBotAdminStatus,
+  { label: string; className: string; icon: typeof CheckCircle2 }
+> = {
+  admin: {
+    label: 'Бот активен',
+    className: 'text-[oklch(0.420_0.095_200)]',
+    icon: CheckCircle2,
+  },
+  not_admin: {
+    label: 'Бот без прав администратора',
+    className: 'text-destructive',
+    icon: AlertCircle,
+  },
+  unknown: {
+    label: 'Статус не проверен',
+    className: 'text-muted-foreground',
+    icon: AlertCircle,
+  },
+  check_failed: {
+    label: 'Не удалось проверить',
+    className: 'text-destructive',
+    icon: AlertCircle,
+  },
 }
 
-const channels: Channel[] = [
-  {
-    id: 1,
-    name: '@techchannel',
-    title: 'Tech Insights RU',
-    subscribers: 12480,
-    status: 'active',
-    botStatus: 'connected',
-    lastPost: '20 июн 2025',
-    postsMonth: 14,
-  },
-  {
-    id: 2,
-    name: '@startupnews_ru',
-    title: 'Стартап Новости',
-    subscribers: 3820,
-    status: 'active',
-    botStatus: 'connected',
-    lastPost: '19 июн 2025',
-    postsMonth: 8,
-  },
-  {
-    id: 3,
-    name: '@designhub',
-    title: 'Design Hub',
-    subscribers: 7100,
-    status: 'error',
-    botStatus: 'disconnected',
-    lastPost: '10 июн 2025',
-    postsMonth: 2,
-  },
-]
+/**
+ * Resolves user-facing message from unknown API errors.
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    return error.message
+  }
+  if (error instanceof Error) {
+    return error.message
+  }
+  return 'Не удалось выполнить запрос'
+}
+
+const connectChannelFriendlyError =
+  'Ошибка при попытке подключения. Убедитесь, что бот привязан к каналу и имеет права администратора.'
 
 export function ChannelsDashboardPage() {
   const [isAdding, setIsAdding] = useState(false)
+  const [setup, setSetup] = useState<BotSetup | null>(null)
+  const [channelInput, setChannelInput] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
+
+  const channels = useMemo(() => setup?.channels ?? [], [setup])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadSetup = async (): Promise<void> => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const nextSetup = await getBotSetup()
+        if (!cancelled) {
+          setSetup(nextSetup)
+        }
+      } catch (loadError: unknown) {
+        if (!cancelled) {
+          setError(getErrorMessage(loadError))
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadSetup()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /**
+   * Refreshes bot setup and channel admin statuses.
+   */
+  const handleRefresh = async (): Promise<void> => {
+    setIsRefreshing(true)
+    setError(null)
+    try {
+      const nextSetup = await getBotSetup()
+      setSetup(nextSetup)
+    } catch (refreshError: unknown) {
+      setError(getErrorMessage(refreshError))
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  /**
+   * Connects channel reference to current user bot.
+   */
+  const handleConnectChannel = async (): Promise<void> => {
+    if (channelInput.trim().length === 0) {
+      setError('Введите username канала или chat ID')
+      return
+    }
+
+    setIsConnecting(true)
+    setError(null)
+    try {
+      await connectChannel(channelInput.trim())
+      const nextSetup = await getBotSetup()
+      setSetup(nextSetup)
+      setChannelInput('')
+      setIsAdding(false)
+    } catch (connectError: unknown) {
+      if (connectError instanceof ApiError && connectError.status === 403) {
+        setError(connectError.message)
+      } else {
+        setError(connectChannelFriendlyError)
+      }
+    } finally {
+      setIsConnecting(false)
+    }
+  }
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="w-full space-y-5">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{channels.length} канала подключено</p>
-        <Button
-          onClick={() => setIsAdding((value) => !value)}
-          variant="primary"
-          size="sm"
-          className="h-9 px-4"
-        >
-          <Plus size={14} />
-          Добавить канал
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={() => {
+              void handleRefresh()
+            }}
+            variant="outline"
+            size="sm"
+            className="h-9 px-4"
+            disabled={isRefreshing}
+          >
+            <RefreshCw size={14} />
+            {isRefreshing ? 'Обновляем...' : 'Обновить'}
+          </Button>
+          <Button
+            onClick={() => setIsAdding((value) => !value)}
+            variant="primary"
+            size="sm"
+            className="h-9 px-4"
+          >
+            <Plus size={14} />
+            Добавить канал
+          </Button>
+        </div>
       </div>
 
       {isAdding ? (
@@ -87,7 +186,7 @@ export function ChannelsDashboardPage() {
             {[
               'Откройте настройки вашего Telegram-канала',
               'Перейдите в раздел «Администраторы»',
-              'Добавьте @PostPilotBot с правом публикации сообщений',
+              'Добавьте вашего бота с правом публикации сообщений',
               'Введите имя канала ниже и нажмите «Подключить»',
             ].map((step, index) => (
               <li key={step} className="flex items-start gap-2.5">
@@ -103,11 +202,21 @@ export function ChannelsDashboardPage() {
             <Input
               type="text"
               placeholder="@channel_name"
+              value={channelInput}
+              onChange={(event) => setChannelInput(event.target.value)}
               className="h-9 flex-1 rounded-md px-3 text-sm focus-visible:ring-1"
               style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as React.CSSProperties}
             />
-            <Button variant="primary" size="sm" className="h-9 px-4">
-              Подключить
+            <Button
+              variant="primary"
+              size="sm"
+              className="h-9 px-4"
+              onClick={() => {
+                void handleConnectChannel()
+              }}
+              disabled={isConnecting}
+            >
+              {isConnecting ? 'Подключаем...' : 'Подключить'}
             </Button>
             <Button
               onClick={() => setIsAdding(false)}
@@ -121,105 +230,77 @@ export function ChannelsDashboardPage() {
         </Card>
       ) : null}
 
+      {error ? (
+        <Card className="border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </Card>
+      ) : null}
+
       <div className="space-y-3">
-        {channels.map((channel) => (
-          <Card key={channel.id} className="p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                  <Radio size={16} className="text-muted-foreground" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold">{channel.title}</h3>
-                    <span className="text-xs text-muted-foreground">{channel.name}</span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-3">
-                    <div
-                      className={`flex items-center gap-1.5 text-xs font-medium ${
-                        channel.botStatus === 'connected' ? '' : 'text-destructive'
-                      }`}
-                      style={
-                        channel.botStatus === 'connected'
-                          ? { color: 'oklch(0.420 0.095 200)' }
-                          : undefined
-                      }
-                    >
-                      {channel.botStatus === 'connected' ? (
-                        <>
-                          <CheckCircle2 size={11} /> Бот активен
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle size={11} /> Бот отключён
-                        </>
-                      )}
+        {isLoading ? (
+          <Card className="p-5 text-sm text-muted-foreground">Загружаем каналы...</Card>
+        ) : channels.length > 0 ? (
+          channels.map((channel) => {
+            const status = channelStatusConfig[channel.adminStatus]
+            const StatusIcon = status.icon
+            return (
+              <Card key={channel.id} className="p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                      <Radio size={16} className="text-muted-foreground" />
                     </div>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">
-                      {channel.subscribers.toLocaleString('ru')} подписчиков
-                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold">{channel.title ?? 'Без названия'}</h3>
+                        <span className="text-xs text-muted-foreground">
+                          {channel.telegramUsername ?? channel.telegramChatId}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center gap-3">
+                        <div className={`flex items-center gap-1.5 text-xs font-medium ${status.className}`}>
+                          <StatusIcon size={11} /> {status.label}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      onClick={() => {
+                        void handleRefresh()
+                      }}
+                    >
+                      <RefreshCw size={14} />
+                    </Button>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex shrink-0 items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                >
-                  <RefreshCw size={14} />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                >
-                  <ExternalLink size={14} />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="h-8 w-8 text-muted-foreground hover:bg-secondary hover:text-destructive"
-                >
-                  <Trash2 size={14} />
-                </Button>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-4 border-t border-border pt-4">
-              {[
-                { label: 'Публикаций в месяц', value: channel.postsMonth },
-                { label: 'Последний пост', value: channel.lastPost },
-                { label: 'Статус', value: channel.status === 'active' ? 'Активен' : 'Ошибка' },
-              ].map(({ label, value }) => (
-                <div key={label}>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <p className="mt-0.5 text-sm font-medium">{value}</p>
-                </div>
-              ))}
-            </div>
-
-            {channel.botStatus === 'disconnected' ? (
-              <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
-                <AlertCircle size={14} className="mt-0.5 shrink-0 text-destructive" />
-                <div>
-                  <p className="text-xs font-medium text-destructive">
-                    Бот не может публиковать посты
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Убедитесь, что @PostPilotBot является администратором канала с правом
-                    публикации.
-                  </p>
-                </div>
-              </div>
-            ) : null}
+                {channel.adminStatus !== 'admin' ? (
+                  <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
+                    <AlertCircle size={14} className="mt-0.5 shrink-0 text-destructive" />
+                    <div>
+                      <p className="text-xs font-medium text-destructive">
+                        Бот не может публиковать посты
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Проверьте, что бот назначен администратором с правом публикации.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </Card>
+            )
+          })
+        ) : (
+          <Card className="p-5 text-sm text-muted-foreground">
+            Каналы пока не подключены. Добавьте канал через форму выше.
           </Card>
-        ))}
+        )}
       </div>
     </div>
   )

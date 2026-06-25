@@ -35,7 +35,7 @@ export function AnalyticsDashboardPage() {
   const [period, setPeriod] = useState('7 дней')
 
   return (
-    <div className="max-w-5xl space-y-5">
+    <div className="w-full space-y-5">
       <div className="w-fit rounded-lg bg-secondary p-1">
         {periods.map((periodItem) => (
           <Button

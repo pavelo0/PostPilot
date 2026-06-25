@@ -3,7 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ChannelLimitsService } from '../billing/channel-limits.service';
 import type { Channel } from '../generated/prisma/client';
+import { BotConnectionsService } from '../bot-connections/bot-connections.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramService } from '../telegram/telegram.service';
 import {
@@ -25,21 +27,37 @@ type ChannelSelectResult = Pick<
 >;
 
 /**
- * Handles connect/status flow for single user channel.
+ * Handles connect/status flow for user channels.
  */
 @Injectable()
 export class ChannelsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly telegramService: TelegramService,
+    private readonly botConnectionsService: BotConnectionsService,
+    private readonly channelLimitsService: ChannelLimitsService,
   ) {}
 
   /**
-   * Returns connected channel for current user.
+   * Returns connected channels for current user.
+   */
+  async listForUser(userId: string): Promise<ChannelDto[]> {
+    const channels = await this.prisma.channel.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: this.channelSelect(),
+    });
+
+    return channels.map((channel) => this.toDto(channel));
+  }
+
+  /**
+   * Returns latest connected channel for backward compatibility.
    */
   async getForUser(userId: string): Promise<ChannelDto> {
-    const channel = await this.prisma.channel.findUnique({
+    const channel = await this.prisma.channel.findFirst({
       where: { userId },
+      orderBy: { createdAt: 'desc' },
       select: this.channelSelect(),
     });
 
@@ -55,13 +73,16 @@ export class ChannelsService {
    */
   async connectForUser(userId: string, payload: unknown): Promise<ChannelDto> {
     const input = this.parseConnectInput(payload);
-    const chat = await this.telegramService.getChat(input.channel);
+    const botToken =
+      await this.botConnectionsService.getRequiredActiveTokenForUser(userId);
+    const chat = await this.telegramService.getChat(botToken, input.channel);
 
     if (chat.type !== 'channel' && chat.type !== 'supergroup') {
       throw new BadRequestException('Only channel chats are supported');
     }
 
     const membership = await this.telegramService.getBotMembership(
+      botToken,
       String(chat.id),
     );
     if (
@@ -73,17 +94,36 @@ export class ChannelsService {
       );
     }
 
+    const telegramChatId = String(chat.id);
+    const existingChannel = await this.prisma.channel.findUnique({
+      where: {
+        userId_telegramChatId: {
+          userId,
+          telegramChatId,
+        },
+      },
+      select: this.channelSelect(),
+    });
+
+    if (!existingChannel) {
+      await this.channelLimitsService.assertCanAddChannel(userId);
+    }
+
     const channel = await this.prisma.channel.upsert({
-      where: { userId },
+      where: {
+        userId_telegramChatId: {
+          userId,
+          telegramChatId,
+        },
+      },
       create: {
         userId,
-        telegramChatId: String(chat.id),
+        telegramChatId,
         telegramUsername: chat.username ?? null,
         title: chat.title ?? null,
         botConnectedAt: new Date(),
       },
       update: {
-        telegramChatId: String(chat.id),
         telegramUsername: chat.username ?? null,
         title: chat.title ?? null,
         botConnectedAt: new Date(),

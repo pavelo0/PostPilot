@@ -93,7 +93,7 @@ export function CalendarDashboardPage() {
   }
 
   return (
-    <div className="max-w-5xl space-y-5">
+    <div className="w-full space-y-5">
       <div className="flex items-center justify-end">
         <Button
           type="button"

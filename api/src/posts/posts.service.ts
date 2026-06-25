@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { BotConnectionsService } from '../bot-connections/bot-connections.service';
 import type { Post } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramService } from '../telegram/telegram.service';
@@ -41,6 +42,7 @@ export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly telegramService: TelegramService,
+    private readonly botConnectionsService: BotConnectionsService,
   ) {}
 
   /**
@@ -135,8 +137,11 @@ export class PostsService {
       return this.toDto(post);
     }
 
-    const channel = await this.prisma.channel.findUnique({
+    const botToken =
+      await this.botConnectionsService.getRequiredActiveTokenForUser(userId);
+    const channel = await this.prisma.channel.findFirst({
       where: { userId },
+      orderBy: { botConnectedAt: 'desc' },
       select: {
         id: true,
         telegramChatId: true,
@@ -149,7 +154,19 @@ export class PostsService {
     }
 
     try {
+      const membership = await this.telegramService.getBotMembership(
+        botToken,
+        channel.telegramChatId,
+      );
+      if (
+        membership.status !== 'administrator' &&
+        membership.status !== 'creator'
+      ) {
+        throw new BadRequestException('Bot must be admin in the selected channel');
+      }
+
       const sentMessage = await this.telegramService.sendMessage(
+        botToken,
         channel.telegramChatId,
         post.body,
       );
