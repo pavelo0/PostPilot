@@ -11,6 +11,19 @@ export class ChannelsController {
   constructor(private readonly channelsService: ChannelsService) {}
 
   /**
+   * Returns all current user connected channels.
+   */
+  @Get()
+  async list(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<{ channels: ChannelDto[] }> {
+    const channels = await this.channelsService.listForUser(
+      request.authUser!.id,
+    );
+    return { channels };
+  }
+
+  /**
    * Returns current user connected channel status.
    */
   @Get('me')

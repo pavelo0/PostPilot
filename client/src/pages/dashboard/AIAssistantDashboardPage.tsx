@@ -42,7 +42,7 @@ export function AIAssistantDashboardPage() {
   }
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="w-full space-y-5">
       <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">

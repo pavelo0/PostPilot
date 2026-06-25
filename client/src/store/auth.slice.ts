@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { retryTransientRequest } from '@/utils/api/transient-request'
 import { ApiError, getMe, type AuthUser } from '@/utils/auth/auth.api'
 
 type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated'
@@ -24,7 +25,7 @@ export const bootstrapAuth = createAsyncThunk<
   { rejectValue: 'unauthorized' | 'request_failed' }
 >('auth/bootstrap', async (_, { rejectWithValue }) => {
   try {
-    const response = await getMe()
+    const response = await retryTransientRequest(getMe)
     return response.user
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {

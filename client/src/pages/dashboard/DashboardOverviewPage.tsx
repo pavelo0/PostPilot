@@ -128,7 +128,7 @@ export function DashboardOverviewPage() {
   const nextPostRelativeTime = relativeTime(nextPost.scheduledAt)
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="w-full space-y-6">
       {!hasConnectedChannel ? (
         <div
           className="flex flex-col gap-3 rounded-xl border border-border px-5 py-4 sm:flex-row sm:items-center"

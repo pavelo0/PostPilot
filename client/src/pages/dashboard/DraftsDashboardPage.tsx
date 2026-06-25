@@ -54,7 +54,7 @@ export function DraftsDashboardPage() {
   )
 
   return (
-    <div className="max-w-4xl space-y-5">
+    <div className="w-full space-y-5">
       <div className="flex items-center gap-3">
         <div className="relative max-w-sm flex-1">
           <Search

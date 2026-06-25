@@ -19,7 +19,8 @@ model User {
   updatedAt    DateTime  @updatedAt
   sessions     Session[]
   posts        Post[]
-  channel      Channel?
+  channels     Channel[]
+  botConnection BotConnection?
   emailVerification EmailVerification?
 }
 
@@ -81,7 +82,7 @@ model Post {
 
 model Channel {
   id               String   @id @default(cuid())
-  userId           String   @unique
+  userId           String
   telegramChatId   String
   telegramUsername String?
   title            String?
@@ -91,5 +92,21 @@ model Channel {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   posts            Post[]
 
+  @@index([userId])
   @@index([telegramChatId])
+  @@unique([userId, telegramChatId])
+}
+
+model BotConnection {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  encryptedToken          String?
+  tokenLastFour           String?
+  isActive                Boolean  @default(false)
+  connectedAt             DateTime?
+  disconnectedAt          DateTime?
+  progressConnectedOnceAt DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
