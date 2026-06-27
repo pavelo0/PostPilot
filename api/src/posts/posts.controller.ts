@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,9 +7,11 @@ import {
   Param,
   Patch,
   Post as HttpPost,
+  Query,
   Req,
 } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../auth/auth.types';
+import { listPostsQuerySchema } from './posts.schemas';
 import { PostsService } from './posts.service';
 import type { PostDto } from './posts.types';
 
@@ -20,14 +23,20 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   /**
-   * Returns posts for current user.
+   * Returns paginated posts for current user with optional status filter.
    */
   @Get()
   async list(
     @Req() request: AuthenticatedRequest,
-  ): Promise<{ posts: PostDto[] }> {
-    const posts = await this.postsService.listForUser(request.authUser!.id);
-    return { posts };
+    @Query() rawQuery: unknown,
+  ): Promise<{ posts: PostDto[]; total: number; hasMore: boolean }> {
+    const parsed = listPostsQuerySchema.safeParse(rawQuery);
+    if (!parsed.success) {
+      throw new BadRequestException(
+        parsed.error.issues[0]?.message ?? 'Invalid query params',
+      );
+    }
+    return this.postsService.listForUser(request.authUser!.id, parsed.data);
   }
 
   /**
@@ -96,10 +105,12 @@ export class PostsController {
   async publish(
     @Req() request: AuthenticatedRequest,
     @Param('id') id: string,
+    @Body() body: unknown,
   ): Promise<{ post: PostDto }> {
     const post = await this.postsService.publishForUser(
       id,
       request.authUser!.id,
+      body,
     );
     return { post };
   }

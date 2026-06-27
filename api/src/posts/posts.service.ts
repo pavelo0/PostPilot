@@ -10,6 +10,10 @@ import { TelegramService } from '../telegram/telegram.service';
 import {
   createPostSchema,
   type CreatePostInput,
+  listPostsQuerySchema,
+  type ListPostsQuery,
+  publishPostSchema,
+  type PublishPostInput,
   updatePostSchema,
   type UpdatePostInput,
 } from './posts.schemas';
@@ -46,16 +50,31 @@ export class PostsService {
   ) {}
 
   /**
-   * Returns current user's posts ordered by newest first.
+   * Returns paginated posts for current user with optional status filter.
    */
-  async listForUser(userId: string): Promise<PostDto[]> {
-    const posts = await this.prisma.post.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      select: this.postSelect(),
-    });
+  async listForUser(
+    userId: string,
+    query: ListPostsQuery,
+  ): Promise<{ posts: PostDto[]; total: number; hasMore: boolean }> {
+    const { page, limit, status } = query;
+    const where = { userId, ...(status ? { status } : {}) };
 
-    return posts.map((post) => this.toDto(post));
+    const [posts, total] = await Promise.all([
+      this.prisma.post.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: this.postSelect(),
+      }),
+      this.prisma.post.count({ where }),
+    ]);
+
+    return {
+      posts: posts.map((post) => this.toDto(post)),
+      total,
+      hasMore: page * limit < total,
+    };
   }
 
   /**
@@ -130,7 +149,12 @@ export class PostsService {
   /**
    * Sends post body to user's connected Telegram channel.
    */
-  async publishForUser(postId: string, userId: string): Promise<PostDto> {
+  async publishForUser(
+    postId: string,
+    userId: string,
+    payload: unknown = {},
+  ): Promise<PostDto> {
+    const input = this.parsePublishInput(payload);
     const post = await this.findOwnedPostOrThrow(postId, userId);
 
     if (post.status === 'published' && post.telegramMessageId !== null) {
@@ -139,15 +163,7 @@ export class PostsService {
 
     const botToken =
       await this.botConnectionsService.getRequiredActiveTokenForUser(userId);
-    const channel = await this.prisma.channel.findFirst({
-      where: { userId },
-      orderBy: { botConnectedAt: 'desc' },
-      select: {
-        id: true,
-        telegramChatId: true,
-        telegramUsername: true,
-      },
-    });
+    const channel = await this.resolvePublishChannel(userId, input.channelId);
 
     if (!channel) {
       throw new BadRequestException('Connect channel first');
@@ -208,6 +224,44 @@ export class PostsService {
       );
     }
     return parsed.data;
+  }
+
+  private parsePublishInput(payload: unknown): PublishPostInput {
+    const parsed = publishPostSchema.safeParse(payload ?? {});
+    if (!parsed.success) {
+      throw new BadRequestException(
+        parsed.error.issues[0]?.message ?? 'Invalid publish payload',
+      );
+    }
+    return parsed.data;
+  }
+
+  private async resolvePublishChannel(
+    userId: string,
+    channelId?: string,
+  ): Promise<{
+    id: string;
+    telegramChatId: string;
+    telegramUsername: string | null;
+  } | null> {
+    const select = {
+      id: true,
+      telegramChatId: true,
+      telegramUsername: true,
+    } as const;
+
+    if (channelId) {
+      return this.prisma.channel.findFirst({
+        where: { id: channelId, userId },
+        select,
+      });
+    }
+
+    return this.prisma.channel.findFirst({
+      where: { userId },
+      orderBy: { botConnectedAt: 'desc' },
+      select,
+    });
   }
 
   private parseUpdateInput(payload: unknown): UpdatePostInput {

@@ -2,7 +2,6 @@ import { BrandLogo } from '@/components/BrandLogo';
 import { cn } from '@/lib/utils';
 import {
 	BarChart2,
-	BookOpen,
 	Calendar,
 	FileText,
 	LayoutGrid,
@@ -32,7 +31,6 @@ const navItems: NavItem[] = [
 	{ icon: Calendar, label: 'Календарь', href: '/dashboard/calendar' },
 	{ icon: Radio, label: 'Каналы', href: '/dashboard/channels' },
 	{ icon: BarChart2, label: 'Аналитика', href: '/dashboard/analytics' },
-	{ icon: BookOpen, label: 'Черновики', href: '/dashboard/drafts' }
 ];
 
 function isItemActive(pathname: string, href: string): boolean {

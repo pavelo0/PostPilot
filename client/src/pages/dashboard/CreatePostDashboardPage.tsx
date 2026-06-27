@@ -1,7 +1,9 @@
-import { useRef, useState, type ChangeEvent, type ElementType } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type ElementType } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { useCreatePostMutation, usePublishPostMutation } from '@/store/api/posts-api'
+import { getBotSetup, type BotChannelStatus } from '@/utils/bot/bot.api'
 import { cn } from '@/lib/utils'
 import {
   Bold,
@@ -21,8 +23,6 @@ import {
   Underline,
   X,
 } from 'lucide-react'
-
-const channels = ['@myawesomechannel', '@techdigest_ru', '@startupnews']
 
 const aiSuggestions = [
   {
@@ -61,6 +61,23 @@ const formatActions: FormatAction[] = [
 ]
 
 /**
+ * Extracts readable error message from RTK Query mutation errors.
+ */
+function getMutationErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'data' in error &&
+    typeof (error as { data?: { message?: unknown } }).data?.message ===
+      'string'
+  ) {
+    return (error as { data: { message: string } }).data.message
+  }
+
+  return fallback
+}
+
+/**
  * Dashboard page for creating a post draft.
  */
 export function CreatePostDashboardPage() {
@@ -71,7 +88,10 @@ export function CreatePostDashboardPage() {
   const [name, setName] = useState('')
   const [body, setBody] = useState('')
   const [image, setImage] = useState<string | null>(null)
-  const [channel, setChannel] = useState(channels[0])
+  const [channels, setChannels] = useState<BotChannelStatus[]>([])
+  const [channel, setChannel] = useState('')
+  const [isChannelsLoading, setIsChannelsLoading] = useState(true)
+  const [channelsError, setChannelsError] = useState<string | null>(null)
   const [scheduleDate, setScheduleDate] = useState('')
   const [scheduleTime, setScheduleTime] = useState('')
   const [publishMode, setPublishMode] = useState<'now' | 'schedule'>(
@@ -81,7 +101,42 @@ export function CreatePostDashboardPage() {
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiResult, setAiResult] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createPost, { isLoading: isCreating }] = useCreatePostMutation()
+  const [publishPost, { isLoading: isPublishing }] = usePublishPostMutation()
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadChannels = async () => {
+      setIsChannelsLoading(true)
+      setChannelsError(null)
+
+      try {
+        const setup = await getBotSetup()
+        if (!isMounted) {
+          return
+        }
+        setChannels(setup.channels)
+        setChannel((currentChannel) => currentChannel || setup.channels[0]?.telegramChatId || '')
+      } catch {
+        if (!isMounted) {
+          return
+        }
+        setChannelsError('Не удалось загрузить каналы')
+      } finally {
+        if (isMounted) {
+          setIsChannelsLoading(false)
+        }
+      }
+    }
+
+    void loadChannels()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   /**
    * Applies markdown-like formatting to selected text.
@@ -155,19 +210,51 @@ export function CreatePostDashboardPage() {
   }
 
   /**
-   * Mock submit handler for create post action.
+   * Creates draft or publishes post depending on selected mode.
    */
   const handleCreate = async () => {
     if (!body.trim()) {
       return
     }
-    setLoading(true)
-    await new Promise((resolve) => {
-      setTimeout(resolve, 800)
-    })
-    setLoading(false)
-    navigate('/dashboard/posts')
+
+    const selectedChannel = channels.find(
+      (channelItem) => channelItem.telegramChatId === channel,
+    )
+
+    if (publishMode === 'now' && !selectedChannel) {
+      setCreateError('Выберите канал для публикации')
+      return
+    }
+
+    setCreateError(null)
+
+    try {
+      const post = await createPost({
+        title: name.trim() ? name.trim() : undefined,
+        body: body.trim(),
+      }).unwrap()
+
+      if (publishMode === 'now') {
+        await publishPost({
+          id: post.id,
+          channelId: selectedChannel?.id,
+        }).unwrap()
+      }
+
+      navigate('/dashboard/posts')
+    } catch (error) {
+      setCreateError(
+        getMutationErrorMessage(
+          error,
+          publishMode === 'now'
+            ? 'Не удалось опубликовать пост. Проверьте бота и права в канале.'
+            : 'Не удалось создать пост. Попробуйте еще раз.',
+        ),
+      )
+    }
   }
+
+  const isSubmitting = isCreating || isPublishing
 
   const charCount = body.length
   const wordCount = body.trim() ? body.trim().split(/\s+/).length : 0
@@ -398,19 +485,36 @@ export function CreatePostDashboardPage() {
                   <select
                     value={channel}
                     onChange={(event) => setChannel(event.target.value)}
+                    disabled={isChannelsLoading || channels.length === 0}
                     className="h-9 w-full cursor-pointer appearance-none rounded-md border border-border bg-background pl-3 pr-8 text-sm focus:ring-1 focus:ring-ring focus:outline-none"
                   >
-                    {channels.map((channelName) => (
-                      <option key={channelName} value={channelName}>
-                        {channelName}
-                      </option>
-                    ))}
+                    {isChannelsLoading ? (
+                      <option value="">Загрузка каналов...</option>
+                    ) : channels.length === 0 ? (
+                      <option value="">Нет подключенных каналов</option>
+                    ) : (
+                      channels.map((channelItem) => (
+                        <option key={channelItem.id} value={channelItem.telegramChatId}>
+                          {channelItem.telegramUsername ||
+                            channelItem.title ||
+                            channelItem.telegramChatId}
+                        </option>
+                      ))
+                    )}
                   </select>
                   <ChevronDown
                     size={13}
                     className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground"
                   />
                 </div>
+                {channelsError ? (
+                  <p className="text-xs text-destructive">{channelsError}</p>
+                ) : null}
+                {!isChannelsLoading && channels.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Подключите канал на странице настроек, чтобы выбрать его здесь.
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-1.5">
@@ -470,21 +574,27 @@ export function CreatePostDashboardPage() {
             <button
               type="button"
               onClick={handleCreate}
-              disabled={loading || !body.trim()}
+              disabled={isSubmitting || !body.trim()}
               className="flex h-10 w-full items-center justify-center gap-2 rounded-md text-sm font-semibold text-background transition-opacity hover:opacity-85 disabled:opacity-50"
               style={{ background: 'oklch(0.130 0.010 255)' }}
             >
-              {loading ? (
+              {isSubmitting ? (
                 <RefreshCw size={14} className="animate-spin" />
               ) : (
                 <Send size={14} />
               )}
-              {loading
-                ? 'Создаём...'
+              {isSubmitting
+                ? publishMode === 'now'
+                  ? 'Публикуем...'
+                  : 'Создаём...'
                 : publishMode === 'now'
                   ? 'Опубликовать'
                   : 'Запланировать'}
             </button>
+
+            {createError ? (
+              <p className="text-xs text-destructive">{createError}</p>
+            ) : null}
 
             <button
               type="button"
