@@ -11,6 +11,7 @@ import { createHash, randomBytes } from 'crypto';
 import type { CookieOptions } from 'express';
 import type { ZodType } from 'zod';
 import type { Prisma } from '../generated/prisma/client';
+import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   EMAIL_VERIFICATION_MAX_ATTEMPTS,
@@ -59,7 +60,10 @@ type IssueCodeResult = {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   async register(payload: unknown): Promise<RegisterStartResponse> {
     const registerInput = this.parseRegisterInput(payload);
@@ -113,7 +117,7 @@ export class AuthService {
       },
     );
 
-    this.logVerificationCode(email, issueResult.code);
+    await this.deliverVerificationCode(email, issueResult.code);
 
     return {
       requiresVerification: true,
@@ -161,7 +165,7 @@ export class AuthService {
       },
     );
 
-    this.logVerificationCode(email, issueResult.code);
+    await this.deliverVerificationCode(email, issueResult.code);
 
     return {
       requiresVerification: true,
@@ -403,6 +407,25 @@ export class AuthService {
 
   private parseRegisterVerifyInput(payload: unknown): RegisterVerifyInput {
     return this.parsePayload(registerVerifySchema, payload);
+  }
+
+  /**
+   * Sends verification code via Resend when configured; always logs in dev fallback.
+   */
+  private async deliverVerificationCode(
+    email: string,
+    code: string,
+  ): Promise<void> {
+    if (this.emailService.isConfigured()) {
+      await this.emailService.sendVerificationCode({
+        to: email,
+        code,
+        ttlMinutes: EMAIL_VERIFICATION_TTL_MINUTES,
+      });
+      return;
+    }
+
+    this.logVerificationCode(email, code);
   }
 
   private logVerificationCode(email: string, code: string): void {
