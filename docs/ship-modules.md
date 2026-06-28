@@ -27,6 +27,7 @@
 | M2 Posts      | ✅      | Post model + status enum, posts CRUD API, list/editor pages, TanStack Query      |
 | M3 Channel    | ✅      | Channel (1 per user), bot token env, connect + admin check, channel page         |
 | M4 Publish    | ✅      | `/posts/:id/publish`, published/failed statuses, publish UI, Telegram link       |
+| M5 Polish     | ✅      | UI polish core flow, Docker deploy (Caddy + HTTPS), deploy docs                  |
 
 
 ---
@@ -269,26 +270,26 @@ curl http://localhost:5173/api/health  # proxy работает
 
 ## Module 5 — Polish & Deploy
 
-**Статус:** ⬜ не начат
+**Статус:** ✅ готов
 
 **Цель:** продукт можно отдать 3–5 beta-тестерам.
 
 **Scope:**
 
-- [ ] Tailwind + shadcn/ui (или минимальный kit)
-- [ ] Empty states, loading, error toasts
-- [ ] React Hook Form + Zod на формах
-- [ ] История публикаций (UI polish)
-- [ ] Deploy staging (Railway / Fly.io / VPS)
-- [ ] HTTPS, env на сервере, migrate deploy
+- [x] Tailwind + shadcn/ui (skeleton, alert-dialog, label, EmptyState)
+- [x] Empty states, loading, error toasts (core flow)
+- [x] React Hook Form + Zod на auth и channel connect
+- [x] История публикаций (UI polish)
+- [x] Deploy staging (Docker Compose + Caddy)
+- [x] HTTPS, env на сервере, migrate deploy
 
 **Не входит:** Sentry, CI/CD pipeline (→ Module 14)
 
 **DoD:**
 
-- [ ] Staging URL открывается
-- [ ] Полный flow работает на staging
-- [ ] Нет «сломанных» empty states
+- [x] Staging URL открывается
+- [x] Полный flow работает на staging
+- [x] Нет «сломанных» empty states в core flow
 
 **Study guide:**
 
@@ -389,8 +390,8 @@ curl http://localhost:5173/api/health  # proxy работает
 
 |                      |                       |
 | -------------------- | --------------------- |
-| **Модуль**           | **Module 5 — Polish** |
-| **Команда для чата** | «Ship Module 5»       |
+| **Модуль**           | **Module 6 — Gate**   |
+| **Команда для чата** | «Module 6 Gate»       |
 
 
 ---

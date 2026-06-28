@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import {
   AlertCircle,
   CheckCircle2,
@@ -6,10 +7,14 @@ import {
   Radio,
   RefreshCw,
 } from 'lucide-react'
+import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Loader } from '@/components/ui/loader'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ApiError } from '@/utils/auth/auth.api'
+import { connectChannelSchema } from '@/utils/channel/channel.schema'
 import {
   connectChannel,
   getBotSetup,
@@ -108,8 +113,11 @@ export function ChannelsDashboardPage() {
     try {
       const nextSetup = await getBotSetup()
       setSetup(nextSetup)
+      toast.success('Список каналов обновлён')
     } catch (refreshError: unknown) {
-      setError(getErrorMessage(refreshError))
+      const message = getErrorMessage(refreshError)
+      setError(message)
+      toast.error(message)
     } finally {
       setIsRefreshing(false)
     }
@@ -119,24 +127,32 @@ export function ChannelsDashboardPage() {
    * Connects channel reference to current user bot.
    */
   const handleConnectChannel = async (): Promise<void> => {
-    if (channelInput.trim().length === 0) {
-      setError('Введите username канала или chat ID')
+    const validation = connectChannelSchema.safeParse({
+      channelReference: channelInput,
+    })
+    if (!validation.success) {
+      const message = validation.error.issues[0]?.message ?? 'Некорректные данные канала'
+      setError(message)
+      toast.error(message)
       return
     }
 
     setIsConnecting(true)
     setError(null)
     try {
-      await connectChannel(channelInput.trim())
+      await connectChannel(validation.data.channelReference)
       const nextSetup = await getBotSetup()
       setSetup(nextSetup)
       setChannelInput('')
       setIsAdding(false)
+      toast.success('Канал подключён')
     } catch (connectError: unknown) {
       if (connectError instanceof ApiError && connectError.status === 403) {
         setError(connectError.message)
+        toast.error(connectError.message)
       } else {
         setError(connectChannelFriendlyError)
+        toast.error(connectChannelFriendlyError)
       }
     } finally {
       setIsConnecting(false)
@@ -158,7 +174,7 @@ export function ChannelsDashboardPage() {
             className="h-9 px-4"
             disabled={isRefreshing}
           >
-            <RefreshCw size={14} />
+            {isRefreshing ? <Loader size="xs" /> : <RefreshCw size={14} />}
             {isRefreshing ? 'Обновляем...' : 'Обновить'}
           </Button>
           <Button
@@ -216,6 +232,7 @@ export function ChannelsDashboardPage() {
               }}
               disabled={isConnecting}
             >
+              {isConnecting ? <Loader size="xs" /> : null}
               {isConnecting ? 'Подключаем...' : 'Подключить'}
             </Button>
             <Button
@@ -238,7 +255,11 @@ export function ChannelsDashboardPage() {
 
       <div className="space-y-3">
         {isLoading ? (
-          <Card className="p-5 text-sm text-muted-foreground">Загружаем каналы...</Card>
+          <Card className="space-y-3 p-5">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-10 w-full" />
+          </Card>
         ) : channels.length > 0 ? (
           channels.map((channel) => {
             const status = channelStatusConfig[channel.adminStatus]
@@ -297,9 +318,22 @@ export function ChannelsDashboardPage() {
             )
           })
         ) : (
-          <Card className="p-5 text-sm text-muted-foreground">
-            Каналы пока не подключены. Добавьте канал через форму выше.
-          </Card>
+          <EmptyState
+            icon={Radio}
+            title="Каналы не подключены"
+            description="Добавьте Telegram-канал, чтобы публиковать посты через PostPilot."
+            action={
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => setIsAdding(true)}
+              >
+                <Plus size={14} />
+                Добавить канал
+              </Button>
+            }
+          />
         )}
       </div>
     </div>

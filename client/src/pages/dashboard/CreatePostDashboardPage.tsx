@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ElementType } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Loader } from '@/components/ui/loader'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreatePostMutation, usePublishPostMutation } from '@/store/api/posts-api'
 import { getBotSetup, type BotChannelStatus } from '@/utils/bot/bot.api'
+import { postBodySchema } from '@/utils/posts/post.schema'
 import { cn } from '@/lib/utils'
 import {
   Bold,
@@ -21,6 +24,7 @@ import {
   Quote,
   RefreshCw,
   Send,
+  Settings,
   Sparkles,
   Strikethrough,
   Underline,
@@ -222,7 +226,9 @@ export function CreatePostDashboardPage() {
    * Creates draft or publishes post depending on selected mode.
    */
   const handleCreate = async () => {
-    if (!body.trim()) {
+    const bodyValidation = postBodySchema.safeParse({ body })
+    if (!bodyValidation.success) {
+      toast.error(bodyValidation.error.issues[0]?.message ?? 'Введите текст поста')
       return
     }
 
@@ -238,7 +244,7 @@ export function CreatePostDashboardPage() {
     try {
       const post = await createPost({
         title: name.trim() ? name.trim() : undefined,
-        body: body.trim(),
+        body: bodyValidation.data.body,
       }).unwrap()
 
       if (publishMode === 'now') {
@@ -563,9 +569,17 @@ export function CreatePostDashboardPage() {
                   <p className="text-xs text-destructive">{channelsError}</p>
                 ) : null}
                 {!isChannelsLoading && channels.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Подключите канал на странице настроек, чтобы выбрать его здесь.
-                  </p>
+                  <EmptyState
+                    icon={Settings}
+                    title="Нет подключённых каналов"
+                    description="Подключите Telegram-канал в настройках, чтобы публиковать посты."
+                    className="py-8"
+                    action={
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/dashboard/settings">Перейти в настройки</Link>
+                      </Button>
+                    }
+                  />
                 ) : null}
               </div>
 
@@ -630,7 +644,7 @@ export function CreatePostDashboardPage() {
               onClick={() => void handleCreate()}
             >
               {isSubmitting ? (
-                <RefreshCw size={14} className="animate-spin" />
+                <Loader size="xs" />
               ) : (
                 <Send size={14} />
               )}

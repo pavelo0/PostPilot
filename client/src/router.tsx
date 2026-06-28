@@ -10,6 +10,7 @@ import {
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { LandingLayout } from '@/layouts/LandingLayout'
 import { ServiceLayout } from '@/layouts/ServiceLayout'
+import { Loader } from '@/components/ui/loader'
 import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
@@ -46,8 +47,8 @@ function AuthBootstrapGate() {
 
   if (!isBootstrapResolved) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Checking your session...
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3">
+        <Loader size="lg" text="Проверяем сессию..." centered />
       </div>
     )
   }

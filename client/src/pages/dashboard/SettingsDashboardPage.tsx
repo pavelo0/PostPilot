@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { Bot, CheckCircle2, Radio, RefreshCw, ShieldAlert, Trash2, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Loader } from '@/components/ui/loader'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ChannelsDashboardPage } from '@/pages/dashboard/ChannelsDashboardPage'
 import { useAppSelector } from '@/store/hooks'
 import { ApiError } from '@/utils/auth/auth.api'
@@ -136,8 +139,11 @@ export function SettingsDashboardPage() {
       const setup = await connectBot(botTokenInput)
       setBotSetup(setup)
       setBotTokenInput('')
+      toast.success('Bot API ключ подключён')
     } catch (error: unknown) {
-      setBotError(getErrorMessage(error))
+      const message = getErrorMessage(error)
+      setBotError(message)
+      toast.error(message)
     } finally {
       setIsConnectingBot(false)
     }
@@ -152,8 +158,11 @@ export function SettingsDashboardPage() {
     try {
       const setup = await disconnectBot()
       setBotSetup(setup)
+      toast.success('Bot API ключ отвязан')
     } catch (error: unknown) {
-      setBotError(getErrorMessage(error))
+      const message = getErrorMessage(error)
+      setBotError(message)
+      toast.error(message)
     } finally {
       setIsDisconnectingBot(false)
     }
@@ -168,8 +177,11 @@ export function SettingsDashboardPage() {
     try {
       const setup = await recheckBot()
       setBotSetup(setup)
+      toast.success('Проверка бота завершена')
     } catch (error: unknown) {
-      setBotError(getErrorMessage(error))
+      const message = getErrorMessage(error)
+      setBotError(message)
+      toast.error(message)
     } finally {
       setIsRecheckingBot(false)
     }
@@ -266,7 +278,11 @@ export function SettingsDashboardPage() {
             </div>
 
             {isLoadingBotSetup ? (
-              <p className="text-sm text-muted-foreground">Загружаем настройки бота...</p>
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-9 w-40" />
+              </div>
             ) : (
               <>
                 <div className="space-y-2">
@@ -301,6 +317,7 @@ export function SettingsDashboardPage() {
                     }}
                     disabled={isConnectingBot}
                   >
+                    {isConnectingBot ? <Loader size="xs" /> : null}
                     {isConnectingBot ? 'Проверяем ключ...' : 'Подключить ключ'}
                   </Button>
                   <Button
@@ -353,7 +370,10 @@ export function SettingsDashboardPage() {
             </div>
 
             {isLoadingBotSetup ? (
-              <p className="text-sm text-muted-foreground">Проверяем каналы...</p>
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
             ) : botSetup && botSetup.channels.length > 0 ? (
               <div className="space-y-2">
                 {botSetup.channels.map((channel) => {
