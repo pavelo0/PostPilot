@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  InternalServerErrorException,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -410,7 +411,7 @@ export class AuthService {
   }
 
   /**
-   * Sends verification code via Resend when configured; always logs in dev fallback.
+   * Sends verification code via Resend when configured; logs in local dev fallback.
    */
   private async deliverVerificationCode(
     email: string,
@@ -423,6 +424,15 @@ export class AuthService {
         ttlMinutes: EMAIL_VERIFICATION_TTL_MINUTES,
       });
       return;
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      this.logger.error(
+        `RESEND_API_KEY is not set — cannot send verification email to ${email}`,
+      );
+      throw new InternalServerErrorException(
+        'Email delivery is not configured',
+      );
     }
 
     this.logVerificationCode(email, code);
