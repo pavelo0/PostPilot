@@ -9,7 +9,10 @@ import {
   Post as HttpPost,
   Query,
   Req,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 import { listPostsQuerySchema } from './posts.schemas';
 import { PostsService } from './posts.service';
@@ -100,17 +103,21 @@ export class PostsController {
 
   /**
    * Publishes post to connected Telegram channel.
+   * Accepts optional media files via multipart/form-data (field name: media).
    */
   @HttpPost(':id/publish')
+  @UseInterceptors(FilesInterceptor('media', 10))
   async publish(
     @Req() request: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: unknown,
+    @UploadedFiles() files: Express.Multer.File[] = [],
   ): Promise<{ post: PostDto }> {
     const post = await this.postsService.publishForUser(
       id,
       request.authUser!.id,
       body,
+      files,
     );
     return { post };
   }

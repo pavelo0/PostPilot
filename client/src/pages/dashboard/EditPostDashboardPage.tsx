@@ -1,226 +1,688 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, AlertCircle, ExternalLink, Send, Save } from 'lucide-react'
+import { useEffect, useRef, useState, type ChangeEvent, type ElementType } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
+import {
+  AlertCircle,
+  ArrowLeft,
+  Bold,
+  CheckCircle2,
+  Code,
+  Copy,
+  ExternalLink,
+  ImagePlus,
+  Italic,
+  Link2,
+  List,
+  Quote,
+  RefreshCw,
+  Save,
+  Send,
+  Sparkles,
+  Strikethrough,
+  Underline,
+  X,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Loader } from '@/components/ui/loader'
+import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 import {
   useGetPostByIdQuery,
-  useUpdatePostMutation,
   usePublishPostMutation,
+  useUpdatePostMutation,
   type Post,
   type PostStatus,
 } from '@/store/api/posts-api'
+import { getBotSetup, type BotChannelStatus } from '@/utils/bot/bot.api'
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+type FormatAction = {
+  icon: ElementType
+  title: string
+  wrap?: [string, string]
+  line?: string
+}
+
+/**
+ * Telegram HTML formatting tags supported by the Bot API.
+ */
+const FORMAT_ACTIONS: FormatAction[] = [
+  { icon: Bold, title: 'Жирный  <b>', wrap: ['<b>', '</b>'] },
+  { icon: Italic, title: 'Курсив  <i>', wrap: ['<i>', '</i>'] },
+  { icon: Underline, title: 'Подчёркнутый  <u>', wrap: ['<u>', '</u>'] },
+  { icon: Strikethrough, title: 'Зачёркнутый  <s>', wrap: ['<s>', '</s>'] },
+  { icon: Code, title: 'Код  <code>', wrap: ['<code>', '</code>'] },
+  { icon: Link2, title: 'Ссылка  <a href="url">', wrap: ['<a href="url">', '</a>'] },
+  { icon: Quote, title: 'Цитата  <blockquote>', wrap: ['<blockquote>', '</blockquote>'] },
+  { icon: List, title: 'Список  •', line: '• ' },
+]
+
+const AI_SUGGESTIONS = [
+  { label: 'Написать вступление', prompt: 'Напиши цепляющее вступление для поста о...' },
+  { label: 'Дополнить текст', prompt: 'Разверни эту мысль подробнее: ...' },
+  { label: 'Сократить', prompt: 'Сократи текст, сохранив смысл: ...' },
+  { label: 'Другой стиль', prompt: 'Перепиши в более живом, неформальном стиле: ...' },
+]
+
+const GENERATED_SAMPLE = `Многие думают, что для успешного Telegram-канала нужно публиковать каждый день. Но это миф.
+
+Регулярность важнее частоты. Аудитория ценит предсказуемость: если вы выходите 3 раза в неделю — выходите ровно 3 раза. Каждый раз.
+
+Качество одного сильного поста в неделю всегда лучше семи посредственных. Читатели это чувствуют.`
 
 const STATUS_CONFIG: Record<PostStatus, { label: string; className: string }> = {
-  draft: {
-    label: 'Черновик',
-    className: 'bg-secondary text-muted-foreground',
-  },
+  draft: { label: 'Черновик', className: 'bg-secondary text-muted-foreground' },
   published: {
     label: 'Опубликован',
     className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
   },
   failed: {
-    label: 'Ошибка публикации',
+    label: 'Ошибка',
     className: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400',
   },
 }
 
-type PostEditorProps = {
-  post: Post
+/**
+ * Formats ISO date into short Russian label.
+ */
+function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(iso))
 }
 
-/**
- * Editor form for an existing post — supports save (PATCH) and publish.
- */
+// ─── Editor component ─────────────────────────────────────────────────────────
+
+type PostEditorProps = { post: Post }
+
 function PostEditor({ post }: PostEditorProps) {
   const navigate = useNavigate()
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [title, setTitle] = useState(post.title ?? '')
   const [body, setBody] = useState(post.body)
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  const [publishError, setPublishError] = useState<string | null>(null)
+  const [mediaFiles, setMediaFiles] = useState<File[]>([])
+
+  // AI panel
+  const [showAI, setShowAI] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiResult, setAiResult] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+
+  // Channels
+  const [channels, setChannels] = useState<BotChannelStatus[]>([])
+  const [channelId, setChannelId] = useState('')
+  const [isChannelsLoading, setIsChannelsLoading] = useState(true)
 
   const [updatePost, { isLoading: isSaving }] = useUpdatePostMutation()
   const [publishPost, { isLoading: isPublishing }] = usePublishPostMutation()
 
   const isDirty = title !== (post.title ?? '') || body !== post.body
   const canPublish = post.status === 'draft' || post.status === 'failed'
-  const bodyLength = body.trim().length
-  const bodyValid = bodyLength >= 1 && bodyLength <= 4000
+
+  const hasMedia = mediaFiles.length > 0 || post.mediaItems.length > 0
+  const charLimit = hasMedia ? 1024 : 4096
+  const charCount = body.length
+  const wordCount = body.trim() ? body.trim().split(/\s+/).length : 0
+  const isOverLimit = charCount > charLimit
+  const bodyValid = body.trim().length >= 1 && !isOverLimit
+
+  /** Adds new media files (max 10 total across new + existing). */
+  const handleMediaChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(event.target.files ?? [])
+    if (!incoming.length) return
+    setMediaFiles((prev) => {
+      const totalExisting = post.mediaItems.length + prev.length
+      const remaining = Math.max(0, 10 - totalExisting)
+      return [...prev, ...incoming.slice(0, remaining)]
+    })
+    event.target.value = ''
+  }
+
+  const removeNewMedia = (index: number) => {
+    setMediaFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      try {
+        const setup = await getBotSetup()
+        if (!mounted) return
+        setChannels(setup.channels)
+        setChannelId(setup.channels[0]?.id ?? '')
+      } finally {
+        if (mounted) setIsChannelsLoading(false)
+      }
+    }
+    void load()
+    return () => { mounted = false }
+  }, [])
+
+  /**
+   * Inserts HTML formatting tags around selected textarea text.
+   */
+  const applyFormat = (action: FormatAction) => {
+    const el = textareaRef.current
+    if (!el) return
+
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const selected = body.slice(start, end)
+
+    let next = body
+    let cursor = start
+
+    if (action.wrap) {
+      const [open, close] = action.wrap
+      const inner = selected || 'текст'
+      const replacement = `${open}${inner}${close}`
+      next = body.slice(0, start) + replacement + body.slice(end)
+      cursor = start + open.length + inner.length + close.length
+    } else if (action.line) {
+      const lineStart = body.lastIndexOf('\n', start - 1) + 1
+      next = body.slice(0, lineStart) + action.line + body.slice(lineStart)
+      cursor = start + action.line.length
+    }
+
+    setBody(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(cursor, cursor)
+    })
+  }
+
+  /** Ctrl+B / Ctrl+I / Ctrl+U shortcuts. */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return
+    const map: Record<string, FormatAction | undefined> = {
+      b: FORMAT_ACTIONS[0],
+      i: FORMAT_ACTIONS[1],
+      u: FORMAT_ACTIONS[2],
+    }
+    const action = map[e.key]
+    if (action) { e.preventDefault(); applyFormat(action) }
+  }
+
+  const handleAIGenerate = async () => {
+    if (!aiPrompt.trim()) return
+    setAiLoading(true)
+    await new Promise((resolve) => { setTimeout(resolve, 1200) })
+    setAiResult(GENERATED_SAMPLE)
+    setAiLoading(false)
+  }
+
+  const insertAIResult = () => {
+    setBody((prev) => (prev ? `${prev}\n\n${aiResult}` : aiResult))
+    setAiResult('')
+    setShowAI(false)
+    setAiPrompt('')
+  }
 
   const handleSave = async () => {
     if (!isDirty || !bodyValid) return
-    setSaveSuccess(false)
     try {
       await updatePost({ id: post.id, title: title || undefined, body }).unwrap()
-      setSaveSuccess(true)
-      setTimeout(() => setSaveSuccess(false), 3000)
+      toast.success('Изменения сохранены')
     } catch {
-      // error handled by RTK
+      toast.error('Не удалось сохранить пост')
     }
   }
 
   const handlePublish = async () => {
-    setPublishError(null)
     try {
-      await publishPost({ id: post.id }).unwrap()
+      await publishPost({
+        id: post.id,
+        channelId: channelId || undefined,
+        files: mediaFiles.length > 0 ? mediaFiles : undefined,
+      }).unwrap()
+      toast.success('Пост опубликован в Telegram')
       navigate('/dashboard/posts')
     } catch (err: unknown) {
       const message =
         err instanceof Object && 'data' in err
           ? ((err as { data?: { message?: string } }).data?.message ?? 'Не удалось опубликовать')
           : 'Не удалось опубликовать'
-      setPublishError(message)
+      toast.error(message)
     }
   }
 
   const statusConfig = STATUS_CONFIG[post.status]
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon-sm" className="h-8 w-8 shrink-0">
+    <div className="max-w-5xl">
+      {/* ── Page header ── */}
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <Button asChild variant="ghost" size="icon-sm">
           <Link to="/dashboard/posts">
             <ArrowLeft size={15} />
           </Link>
         </Button>
-        <div className="flex flex-1 items-center gap-2 min-w-0">
-          <h1 className="truncate text-base font-semibold text-foreground">
-            Редактирование поста
-          </h1>
-          <span
-            className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${statusConfig.className}`}
+        <h1 className="text-base font-semibold text-foreground">
+          Редактирование поста
+        </h1>
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium ${statusConfig.className}`}
+        >
+          {statusConfig.label}
+        </span>
+
+        {post.status === 'published' && post.telegramPostUrl ? (
+          <a
+            href={post.telegramPostUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto flex items-center gap-1.5 text-xs text-emerald-600 transition-colors hover:text-emerald-700"
           >
-            {statusConfig.label}
-          </span>
-        </div>
+            <ExternalLink size={12} />
+            Открыть в Telegram
+          </a>
+        ) : null}
       </div>
 
-      {/* Telegram link for published posts */}
-      {post.status === 'published' && post.telegramPostUrl ? (
-        <a
-          href={post.telegramPostUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-xs text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
-        >
-          <CheckCircle2 size={14} />
-          <span className="flex-1">Пост опубликован в Telegram</span>
-          <ExternalLink size={12} />
-        </a>
-      ) : null}
-
-      {/* Error message for failed posts */}
+      {/* ── Error banner ── */}
       {post.status === 'failed' && post.errorMessage ? (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
+        <div className="mb-5 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
           <AlertCircle size={14} className="mt-0.5 shrink-0" />
           <span>{post.errorMessage}</span>
         </div>
       ) : null}
 
-      {/* Form */}
-      <div className="space-y-4 rounded-xl border border-border bg-card p-5">
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="edit-title">
-            Заголовок <span className="text-muted-foreground/50">(необязательно)</span>
-          </label>
-          <Input
-            id="edit-title"
-            placeholder="Заголовок поста..."
-            value={title}
-            maxLength={120}
-            onChange={(e) => setTitle(e.target.value)}
-            className="h-9 text-sm"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-muted-foreground" htmlFor="edit-body">
-              Текст поста
+      {/* ── Two-column grid ── */}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_280px]">
+        {/* LEFT — editor */}
+        <div className="space-y-4">
+          {/* Title */}
+          <div className="space-y-1.5">
+            <label htmlFor="edit-title" className="text-xs font-medium text-muted-foreground">
+              Название поста{' '}
+              <span className="text-muted-foreground/60">(только внутри приложения)</span>
             </label>
-            <span
-              className={`text-[10px] tabular-nums ${
-                bodyLength > 3800 ? 'text-red-500' : 'text-muted-foreground'
-              }`}
-            >
-              {bodyLength} / 4000
-            </span>
+            <Input
+              id="edit-title"
+              placeholder="Например: Анонс июньской рубрики"
+              value={title}
+              maxLength={120}
+              onChange={(e) => setTitle(e.target.value)}
+              className="h-9 bg-card text-sm"
+            />
           </div>
-          <Textarea
-            id="edit-body"
-            placeholder="Текст поста..."
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            className="min-h-[260px] resize-y text-sm leading-relaxed"
-          />
-        </div>
-      </div>
 
-      {/* Publish error */}
-      {publishError ? (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400">
-          <AlertCircle size={14} className="mt-0.5 shrink-0" />
-          <span>{publishError}</span>
-        </div>
-      ) : null}
+          {/* Textarea + side toolbar */}
+          <div className="flex gap-0 overflow-hidden rounded-xl border border-border bg-card shadow-none">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <Textarea
+                ref={textareaRef}
+                id="edit-body"
+                placeholder="Начните писать пост..."
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className={cn(
+                  'min-h-[340px] resize-none rounded-none border-0 bg-transparent px-5 pt-4 pb-3 text-sm leading-relaxed',
+                  'focus-visible:ring-0',
+                )}
+              />
+              <div className="flex items-center justify-between border-t border-border bg-secondary/20 px-5 py-2.5">
+                <span className={cn(
+                  'tabular-nums text-[11px]',
+                  isOverLimit ? 'text-destructive' : 'text-muted-foreground',
+                )}>
+                  {charCount} / {charLimit} симв. · {wordCount} слов
+                </span>
+                {body.length > 0 ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setBody('')}
+                    className="h-auto gap-1 px-1 py-0.5 text-[11px] hover:text-destructive"
+                  >
+                    <X size={11} /> Очистить
+                  </Button>
+                ) : null}
+              </div>
+            </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {saveSuccess ? (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-600">
-              <CheckCircle2 size={13} />
-              Сохранено
-            </span>
+            {/* Vertical format toolbar */}
+            <div className="flex w-10 shrink-0 flex-col items-center gap-0.5 border-l border-border bg-secondary/30 py-3">
+              {FORMAT_ACTIONS.map(({ icon: Icon, title, ...rest }) => (
+                <Button
+                  key={title}
+                  variant="ghost"
+                  size="icon-sm"
+                  title={title}
+                  onClick={() => applyFormat({ icon: Icon, title, ...rest })}
+                >
+                  <Icon size={14} />
+                </Button>
+              ))}
+
+              <div className="my-1.5 h-px w-5 bg-border" />
+
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                title="AI-помощник"
+                onClick={() => setShowAI((v) => !v)}
+                className={showAI ? 'text-background hover:text-background' : ''}
+                style={showAI ? { background: 'oklch(0.420 0.095 200)' } : undefined}
+              >
+                <Sparkles size={14} />
+              </Button>
+            </div>
+          </div>
+
+          {/* AI panel */}
+          {showAI ? (
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={13} style={{ color: 'oklch(0.420 0.095 200)' }} />
+                  <span className="text-sm font-semibold">AI-помощник</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1">
+                  {AI_SUGGESTIONS.map((s) => (
+                    <Button
+                      key={s.label}
+                      variant="outline"
+                      onClick={() => setAiPrompt(s.prompt)}
+                      className="h-auto px-2.5 py-1 text-[11px] font-medium"
+                    >
+                      {s.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3 p-4">
+                <Textarea
+                  placeholder="Опишите, что нужно сгенерировать или улучшить..."
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  className="min-h-[80px] resize-none border-border bg-background text-sm focus-visible:ring-1"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    disabled={aiLoading || !aiPrompt.trim()}
+                    onClick={() => void handleAIGenerate()}
+                    className="gap-2 text-sm font-medium text-background hover:opacity-85"
+                    style={{ background: 'oklch(0.420 0.095 200)' }}
+                  >
+                    {aiLoading
+                      ? <RefreshCw size={13} className="animate-spin" />
+                      : <Sparkles size={13} />}
+                    {aiLoading ? 'Генерируем...' : 'Сгенерировать'}
+                  </Button>
+                </div>
+              </div>
+
+              {aiResult ? (
+                <div className="border-t border-border">
+                  <div className="flex items-center justify-between bg-secondary/20 px-4 py-3">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Результат
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Сбросить"
+                        onClick={() => setAiResult('')}
+                      >
+                        <RefreshCw size={12} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Скопировать"
+                        onClick={() => void navigator.clipboard.writeText(aiResult)}
+                      >
+                        <Copy size={12} />
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="ml-1"
+                        onClick={insertAIResult}
+                      >
+                        <Send size={11} />
+                        Вставить в пост
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="whitespace-pre-line px-4 py-3 text-sm leading-relaxed text-foreground">
+                    {aiResult}
+                  </p>
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 px-4"
-            disabled={!isDirty || !bodyValid || isSaving}
-            onClick={() => void handleSave()}
-          >
-            {isSaving ? (
-              <Loader size="xs" />
-            ) : (
-              <Save size={14} />
-            )}
-            Сохранить
-          </Button>
+        {/* RIGHT — info + actions */}
+        <div className="space-y-4">
+          {/* Status card */}
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <div className="border-b border-border px-4 py-3">
+              <span className="text-sm font-semibold">Информация о посте</span>
+            </div>
+            <div className="space-y-3 p-4 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Статус</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusConfig.className}`}
+                >
+                  {statusConfig.label}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Создан</span>
+                <span className="text-xs text-foreground">{formatDate(post.createdAt)}</span>
+              </div>
+              {post.publishedAt ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Опубликован</span>
+                  <span className="text-xs text-foreground">{formatDate(post.publishedAt)}</span>
+                </div>
+              ) : null}
+              {post.status === 'published' && post.telegramPostUrl ? (
+                <Button asChild variant="outline" className="w-full">
+                  <a
+                    href={post.telegramPostUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink size={12} />
+                    Открыть в Telegram
+                  </a>
+                </Button>
+              ) : null}
+            </div>
+          </div>
 
+          {/* Publish card */}
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <div className="border-b border-border px-4 py-3">
+              <span className="text-sm font-semibold">Публикация</span>
+            </div>
+            <div className="space-y-3 p-4">
+              {/* Channel selector */}
+              {canPublish ? (
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Канал</label>
+                  <select
+                    value={channelId}
+                    onChange={(e) => setChannelId(e.target.value)}
+                    disabled={isChannelsLoading || channels.length === 0}
+                    className="h-9 w-full cursor-pointer appearance-none rounded-md border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    {isChannelsLoading ? (
+                      <option value="">Загрузка каналов...</option>
+                    ) : channels.length === 0 ? (
+                      <option value="">Нет подключённых каналов</option>
+                    ) : (
+                      channels.map((ch) => (
+                        <option key={ch.id} value={ch.id}>
+                          {ch.telegramUsername ?? ch.title ?? ch.telegramChatId}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              ) : null}
+
+              {/* Save */}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => void handleSave()}
+                disabled={!isDirty || !bodyValid || isSaving}
+              >
+                {isSaving ? <Loader size="xs" /> : <Save size={14} />}
+                Сохранить изменения
+              </Button>
+
+              {/* Publish */}
+              {canPublish ? (
+                <Button
+                  variant="primary"
+                  className="w-full font-semibold"
+                  onClick={() => void handlePublish()}
+                  disabled={isPublishing || !bodyValid}
+                >
+                  {isPublishing ? <Loader size="xs" /> : <Send size={14} />}
+                  Опубликовать
+                </Button>
+              ) : null}
+
+              {/* Published confirmation */}
+              {post.status === 'published' ? (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-600">
+                  <CheckCircle2 size={13} />
+                  Пост уже опубликован
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Media card */}
           {canPublish ? (
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              className="h-9 px-4"
-              disabled={isPublishing || !bodyValid}
-              onClick={() => void handlePublish()}
-            >
-              {isPublishing ? (
-                <Loader size="xs" />
-              ) : (
-                <Send size={14} />
-              )}
-              Опубликовать
-            </Button>
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <span className="text-sm font-semibold">Медиа</span>
+                {(post.mediaItems.length + mediaFiles.length) > 0 ? (
+                  <span className="text-[11px] text-muted-foreground">
+                    {post.mediaItems.length + mediaFiles.length} / 10
+                  </span>
+                ) : null}
+              </div>
+              <div className="space-y-2 p-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleMediaChange}
+                />
+
+                {/* Existing published media */}
+                {post.mediaItems.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {post.mediaItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="flex aspect-square items-center justify-center rounded-lg border border-border bg-secondary/40 text-[10px] font-medium text-muted-foreground"
+                      >
+                        {item.mediaType === 'video' ? 'VID' : 'IMG'} {index + 1}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {/* New files picker */}
+                {(post.mediaItems.length + mediaFiles.length) < 10 ? (
+                  mediaFiles.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {mediaFiles.map((file, index) => {
+                        const url = URL.createObjectURL(file)
+                        const isVideo = file.type.startsWith('video/')
+                        return (
+                          <div key={index} className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-secondary/30">
+                            {isVideo ? (
+                              <video src={url} className="h-full w-full object-cover" muted />
+                            ) : (
+                              <img src={url} alt="" className="h-full w-full object-cover" />
+                            )}
+                            {isVideo ? (
+                              <div className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[9px] text-white">VID</div>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => removeNewMedia(index)}
+                              className="absolute top-1 right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                            >
+                              <X size={10} />
+                            </button>
+                          </div>
+                        )
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex aspect-square cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                      >
+                        <ImagePlus size={16} className="opacity-50" />
+                      </button>
+                    </div>
+                  ) : post.mediaItems.length === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex h-20 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                    >
+                      <ImagePlus size={18} className="opacity-50" />
+                      <span className="text-[11px]">Добавить фото/видео</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex h-20 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                    >
+                      <ImagePlus size={18} className="opacity-50" />
+                      <span className="text-[11px]">Добавить ещё</span>
+                    </button>
+                  )
+                ) : null}
+
+                <p className="px-0.5 text-[11px] text-muted-foreground">
+                  {hasMedia ? 'С медиа: подпись до 1024 симв.' : 'Фото ≤ 10 МБ · Видео ≤ 50 МБ · До 10 файлов'}
+                </p>
+              </div>
+            </div>
           ) : null}
+
+          <p className="text-center text-[11px] text-muted-foreground">
+            HTML-теги: <code className="rounded bg-secondary px-1 font-mono text-[10px]">&lt;b&gt;</code>{' '}
+            <code className="rounded bg-secondary px-1 font-mono text-[10px]">&lt;i&gt;</code>{' '}
+            <code className="rounded bg-secondary px-1 font-mono text-[10px]">&lt;u&gt;</code>{' '}
+            <code className="rounded bg-secondary px-1 font-mono text-[10px]">&lt;a href=&quot;url&quot;&gt;</code>
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
+// ─── Page wrapper ─────────────────────────────────────────────────────────────
+
 /**
- * Page wrapper — loads post by :id param and renders editor.
+ * Loads post by :id URL param, renders PostEditor when ready.
  */
 export function EditPostDashboardPage() {
   const { id } = useParams<{ id: string }>()
@@ -231,14 +693,12 @@ export function EditPostDashboardPage() {
   })
 
   useEffect(() => {
-    if (!id) {
-      navigate('/dashboard/posts', { replace: true })
-    }
+    if (!id) navigate('/dashboard/posts', { replace: true })
   }, [id, navigate])
 
   if (isLoading) {
     return (
-      <div className="flex h-full min-h-[300px] items-center justify-center">
+      <div className="flex min-h-[300px] items-center justify-center">
         <Loader size="lg" text="Загружаем пост..." centered />
       </div>
     )

@@ -18,3 +18,26 @@ export type TelegramChatMember = {
 export type TelegramSentMessage = {
   message_id: number;
 };
+
+export type TelegramPhoto = {
+  file_id: string;
+  file_unique_id: string;
+  width: number;
+  height: number;
+  file_size?: number;
+};
+
+export type TelegramVideo = {
+  file_id: string;
+  file_unique_id: string;
+  duration: number;
+  file_size?: number;
+};
+
+export type TelegramPhotoMessage = TelegramSentMessage & {
+  photo: TelegramPhoto[];
+};
+
+export type TelegramVideoMessage = TelegramSentMessage & {
+  video: TelegramVideo;
+};
