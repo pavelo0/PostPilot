@@ -14,3 +14,8 @@ export const EMAIL_FROM =
 export const EMAIL_VERIFICATION_SUBJECT =
   process.env.EMAIL_VERIFICATION_SUBJECT?.trim() ??
   'PostPilot — код подтверждения';
+
+/**
+ * Public app URL for CTA links in emails (no trailing slash).
+ */
+export const APP_PUBLIC_URL = process.env.APP_PUBLIC_URL?.trim() ?? '';

@@ -5,10 +5,12 @@ import {
 } from '@nestjs/common';
 import { Resend } from 'resend';
 import {
+  APP_PUBLIC_URL,
   EMAIL_FROM,
   EMAIL_VERIFICATION_SUBJECT,
   RESEND_API_KEY,
 } from './email.constants';
+import { buildVerificationCodeEmail } from './templates/verification-code.template';
 
 type SendVerificationCodeParams = {
   to: string;
@@ -50,21 +52,11 @@ export class EmailService {
       return;
     }
 
-    const text = [
-      `Ваш код подтверждения PostPilot: ${code}`,
-      '',
-      `Код действует ${ttlMinutes} мин.`,
-      'Если вы не регистрировались — проигнорируйте это письмо.',
-    ].join('\n');
-
-    const html = `
-      <div style="font-family: system-ui, sans-serif; max-width: 480px; line-height: 1.5;">
-        <p>Ваш код подтверждения PostPilot:</p>
-        <p style="font-size: 28px; font-weight: 700; letter-spacing: 4px; margin: 16px 0;">${code}</p>
-        <p style="color: #666;">Код действует ${ttlMinutes} мин.</p>
-        <p style="color: #666; font-size: 13px;">Если вы не регистрировались — проигнорируйте это письмо.</p>
-      </div>
-    `.trim();
+    const { html, text } = buildVerificationCodeEmail({
+      code,
+      ttlMinutes,
+      appUrl: APP_PUBLIC_URL || undefined,
+    });
 
     const { error } = await this.resend.emails.send({
       from: EMAIL_FROM,
