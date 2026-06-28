@@ -1,0 +1,24 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Build output
+dist
+coverage
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+
+# Generated at build time
+src/generated
+
+# Dev artifacts
+.git
+.gitignore
+*.md
+test
+.eslintrc*
+eslint.config.*
+.prettierrc*

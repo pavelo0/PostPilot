@@ -1,0 +1,91 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postpilot-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postpilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postpilot}
+      POSTGRES_DB: ${POSTGRES_DB:-postpilot}
+    volumes:
+      - postpilot_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-postpilot} -d ${POSTGRES_DB:-postpilot}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - postpilot
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: postpilot-api-prod
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postpilot}:${POSTGRES_PASSWORD:-postpilot}@postgres:5432/${POSTGRES_DB:-postpilot}
+      BOT_TOKEN_ENCRYPTION_KEY: ${BOT_TOKEN_ENCRYPTION_KEY:?BOT_TOKEN_ENCRYPTION_KEY is required}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-postpilot_session}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-14}
+      EXPOSE_EMAIL_VERIFICATION_CODE: ${EXPOSE_EMAIL_VERIFICATION_CODE:-false}
+      LOG_EMAIL_VERIFICATION_CODE: ${LOG_EMAIL_VERIFICATION_CODE:-false}
+      DEFAULT_SUBSCRIPTION_PLAN: ${DEFAULT_SUBSCRIPTION_PLAN:-basic}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3000/api/health > /dev/null || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - postpilot
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: postpilot-client-prod
+    restart: unless-stopped
+    networks:
+      - postpilot
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: postpilot-caddy-prod
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      CADDY_SITE: ${CADDY_SITE:-http://localhost}
+      CADDY_EMAIL: ${CADDY_EMAIL:-internal@localhost}
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      client:
+        condition: service_started
+    networks:
+      - postpilot
+
+networks:
+  postpilot:
+    driver: bridge
+
+volumes:
+  postpilot_pg_data:
+  caddy_data:
+  caddy_config:

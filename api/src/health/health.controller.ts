@@ -1,4 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Public } from '../common/public.decorator';
 import { HealthService, type HealthStatus } from './health.service';
 
@@ -9,6 +13,12 @@ export class HealthController {
   @Public()
   @Get()
   async getHealth(): Promise<HealthStatus> {
-    return this.healthService.getStatus();
+    const status = await this.healthService.getStatus();
+
+    if (status.db === 'down') {
+      throw new ServiceUnavailableException(status);
+    }
+
+    return status;
   }
 }

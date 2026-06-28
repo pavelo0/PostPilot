@@ -1,14 +1,12 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, Eye, EyeOff } from 'lucide-react'
-import {
-  useMemo,
-  useState,
-  type ChangeEvent,
-  type CSSProperties,
-  type FormEvent,
-} from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useMemo, useState, type CSSProperties } from 'react'
+import { useForm } from 'react-hook-form'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Loader } from '@/components/ui/loader'
 import {
   ApiError,
   register,
@@ -17,7 +15,6 @@ import {
 import {
   registerSchema,
   type RegisterFormData,
-  type RegisterFormErrors,
 } from '@/utils/auth/register.schema'
 
 type PasswordCheck = {
@@ -28,70 +25,39 @@ type PasswordCheck = {
 export function RegisterPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [formData, setFormData] = useState<RegisterFormData>({
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
+
+  const {
+    register: registerField,
+    handleSubmit,
+    setError,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+    },
   })
-  const [formErrors, setFormErrors] = useState<RegisterFormErrors>({})
+
+  const passwordValue = watch('password')
 
   const checks = useMemo<PasswordCheck[]>(
     () => [
-      { label: 'Минимум 8 символов', isValid: formData.password.length >= 8 },
+      { label: 'Минимум 8 символов', isValid: passwordValue.length >= 8 },
       {
         label: 'Прописные и строчные буквы',
-        isValid:
-          /[A-Z]/.test(formData.password) && /[a-z]/.test(formData.password),
+        isValid: /[A-Z]/.test(passwordValue) && /[a-z]/.test(passwordValue),
       },
-      { label: 'Хотя бы одна цифра', isValid: /\d/.test(formData.password) },
+      { label: 'Хотя бы одна цифра', isValid: /\d/.test(passwordValue) },
     ],
-    [formData.password],
+    [passwordValue],
   )
 
-  const handleFieldChange =
-    (field: keyof RegisterFormData) =>
-    (event: ChangeEvent<HTMLInputElement>): void => {
-      const nextValue = event.target.value
-      setFormData((currentValues) => ({
-        ...currentValues,
-        [field]: nextValue,
-      }))
-      setFormErrors((currentErrors) => ({
-        ...currentErrors,
-        [field]: undefined,
-      }))
-      setSubmitError(null)
-    }
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault()
-
-    const validationResult = registerSchema.safeParse(formData)
-    if (!validationResult.success) {
-      const nextErrors = validationResult.error.issues.reduce<RegisterFormErrors>(
-        (collectedErrors, issue) => {
-          const field = issue.path[0]
-          if (typeof field !== 'string') {
-            return collectedErrors
-          }
-          if (collectedErrors[field as keyof RegisterFormData]) {
-            return collectedErrors
-          }
-          return {
-            ...collectedErrors,
-            [field]: issue.message,
-          }
-        },
-        {},
-      )
-      setFormErrors(nextErrors)
-      return
-    }
-
-    setIsLoading(true)
+  const onSubmit = handleSubmit(async (formData) => {
     setSubmitError(null)
     try {
       const response = await register(formData)
@@ -106,20 +72,15 @@ export function RegisterPage() {
       navigate(`/verify-email?${searchParams.toString()}`)
     } catch (error) {
       if (error instanceof ApiError) {
-        const nextErrors = error.validationErrors.reduce<RegisterFormErrors>(
-          (collectedErrors, issue) =>
-            applyValidationErrorToRegisterForm(collectedErrors, issue),
-          {},
-        )
-        setFormErrors(nextErrors)
+        error.validationErrors.forEach((issue) => {
+          applyValidationErrorToRegisterForm(setError, issue)
+        })
         setSubmitError(error.message)
       } else {
         setSubmitError('Не удалось отправить код подтверждения. Попробуйте снова.')
       }
-    } finally {
-      setIsLoading(false)
     }
-  }
+  })
 
   return (
     <div className="py-12">
@@ -128,74 +89,73 @@ export function RegisterPage() {
         Уже есть аккаунт?{' '}
         <Link
           to="/login"
-          className="font-medium underline underline-offset-4 transition-colors hover:text-foreground"
-          style={{ color: 'oklch(0.420 0.095 200)' }}
+          className="font-medium text-primary underline underline-offset-4 transition-colors hover:text-foreground"
         >
           Войти
         </Link>
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+      <form onSubmit={onSubmit} className="space-y-5" noValidate>
         <div className="grid grid-cols-2 gap-4">
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium">Имя</span>
+          <div className="space-y-1.5">
+            <Label htmlFor="register-first-name">Имя</Label>
             <Input
+              id="register-first-name"
               type="text"
               placeholder="Иван"
-              value={formData.firstName}
-              onChange={handleFieldChange('firstName')}
-              aria-invalid={Boolean(formErrors.firstName)}
+              aria-invalid={Boolean(errors.firstName)}
               className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
-              style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as CSSProperties}
+              style={{ '--tw-ring-color': 'var(--ring)' } as CSSProperties}
+              {...registerField('firstName')}
             />
-            {formErrors.firstName ? (
-              <p className="text-xs text-destructive">{formErrors.firstName}</p>
+            {errors.firstName ? (
+              <p className="text-xs text-destructive">{errors.firstName.message}</p>
             ) : null}
-          </label>
-          <label className="block space-y-1.5">
-            <span className="text-sm font-medium">Фамилия</span>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="register-last-name">Фамилия</Label>
             <Input
+              id="register-last-name"
               type="text"
               placeholder="Петров"
-              value={formData.lastName}
-              onChange={handleFieldChange('lastName')}
-              aria-invalid={Boolean(formErrors.lastName)}
+              aria-invalid={Boolean(errors.lastName)}
               className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
-              style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as CSSProperties}
+              style={{ '--tw-ring-color': 'var(--ring)' } as CSSProperties}
+              {...registerField('lastName')}
             />
-            {formErrors.lastName ? (
-              <p className="text-xs text-destructive">{formErrors.lastName}</p>
+            {errors.lastName ? (
+              <p className="text-xs text-destructive">{errors.lastName.message}</p>
             ) : null}
-          </label>
+          </div>
         </div>
 
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium">Email</span>
+        <div className="space-y-1.5">
+          <Label htmlFor="register-email">Email</Label>
           <Input
+            id="register-email"
             type="email"
             placeholder="you@example.com"
-            value={formData.email}
-            onChange={handleFieldChange('email')}
-            aria-invalid={Boolean(formErrors.email)}
+            aria-invalid={Boolean(errors.email)}
             className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
-            style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as CSSProperties}
+            style={{ '--tw-ring-color': 'var(--ring)' } as CSSProperties}
+            {...registerField('email')}
           />
-          {formErrors.email ? (
-            <p className="text-xs text-destructive">{formErrors.email}</p>
+          {errors.email ? (
+            <p className="text-xs text-destructive">{errors.email.message}</p>
           ) : null}
-        </label>
+        </div>
 
         <div className="space-y-1.5">
-          <span className="text-sm font-medium">Пароль</span>
+          <Label htmlFor="register-password">Пароль</Label>
           <div className="relative">
             <Input
+              id="register-password"
               type={showPassword ? 'text' : 'password'}
               placeholder="Придумайте надежный пароль"
-              value={formData.password}
-              onChange={handleFieldChange('password')}
-              aria-invalid={Boolean(formErrors.password)}
+              aria-invalid={Boolean(errors.password)}
               className="h-10 rounded-md px-3 pr-10 text-sm focus-visible:ring-1"
-              style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as CSSProperties}
+              style={{ '--tw-ring-color': 'var(--ring)' } as CSSProperties}
+              {...registerField('password')}
             />
             <Button
               type="button"
@@ -208,22 +168,22 @@ export function RegisterPage() {
               {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
             </Button>
           </div>
-          {formErrors.password ? (
-            <p className="text-xs text-destructive">{formErrors.password}</p>
+          {errors.password ? (
+            <p className="text-xs text-destructive">{errors.password.message}</p>
           ) : null}
 
-          {formData.password.length > 0 ? (
+          {passwordValue.length > 0 ? (
             <div className="mt-2 space-y-1.5">
               {checks.map((check) => (
                 <div key={check.label} className="flex items-center gap-2 text-xs">
                   <div
                     className={`flex h-4 w-4 items-center justify-center rounded-full border ${
                       check.isValid
-                        ? 'border-[oklch(0.420_0.095_200)] bg-[oklch(0.420_0.095_200)]'
+                        ? 'border-primary bg-primary'
                         : 'border-border'
                     }`}
                   >
-                    {check.isValid ? <Check size={9} className="text-white" /> : null}
+                    {check.isValid ? <Check size={9} className="text-primary-foreground" /> : null}
                   </div>
                   <span className={check.isValid ? 'text-foreground' : 'text-muted-foreground'}>
                     {check.label}
@@ -236,12 +196,19 @@ export function RegisterPage() {
 
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isSubmitting}
           variant="primary"
           size="md"
           className="h-10 w-full disabled:opacity-60"
         >
-          {isLoading ? 'Отправляем код...' : 'Зарегистрироваться'}
+          {isSubmitting ? (
+            <>
+              <Loader size="xs" />
+              Отправляем код...
+            </>
+          ) : (
+            'Зарегистрироваться'
+          )}
         </Button>
         {submitError ? (
           <p className="text-center text-xs text-destructive">{submitError}</p>
@@ -252,27 +219,20 @@ export function RegisterPage() {
 }
 
 const applyValidationErrorToRegisterForm = (
-  currentErrors: RegisterFormErrors,
+  setFieldError: (
+    name: keyof RegisterFormData,
+    error: { message: string },
+  ) => void,
   issue: ApiValidationError,
-): RegisterFormErrors => {
-  if (!isRegisterFormField(issue.field)) {
-    return currentErrors
+): void => {
+  if (
+    issue.field !== 'firstName' &&
+    issue.field !== 'lastName' &&
+    issue.field !== 'email' &&
+    issue.field !== 'password'
+  ) {
+    return
   }
 
-  if (currentErrors[issue.field]) {
-    return currentErrors
-  }
-
-  return {
-    ...currentErrors,
-    [issue.field]: issue.message,
-  }
+  setFieldError(issue.field, { message: issue.message })
 }
-
-const isRegisterFormField = (
-  field: string,
-): field is keyof RegisterFormData =>
-  field === 'firstName' ||
-  field === 'lastName' ||
-  field === 'email' ||
-  field === 'password'

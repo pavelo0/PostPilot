@@ -1,20 +1,18 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Eye, EyeOff } from 'lucide-react'
-import {
-  useState,
-  type ChangeEvent,
-  type CSSProperties,
-  type FormEvent,
-} from 'react'
+import { useState, type CSSProperties } from 'react'
+import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Loader } from '@/components/ui/loader'
 import { setAuthenticatedUser } from '@/store/auth.slice'
 import { useAppDispatch } from '@/store/hooks'
 import { ApiError, login, type ApiValidationError } from '@/utils/auth/auth.api'
 import {
   loginSchema,
   type LoginFormData,
-  type LoginFormErrors,
 } from '@/utils/auth/login.schema'
 
 export function LoginPage() {
@@ -22,80 +20,44 @@ export function LoginPage() {
   const dispatch = useAppDispatch()
   const [searchParams] = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [requiresVerification, setRequiresVerification] = useState(false)
-  const [formData, setFormData] = useState<LoginFormData>({
-    email: '',
-    password: '',
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   })
-  const [formErrors, setFormErrors] = useState<LoginFormErrors>({})
 
-  const handleFieldChange =
-    (field: keyof LoginFormData) =>
-    (event: ChangeEvent<HTMLInputElement>): void => {
-      const nextValue = event.target.value
-      setFormData((currentValues) => ({
-        ...currentValues,
-        [field]: nextValue,
-      }))
-      setFormErrors((currentErrors) => ({
-        ...currentErrors,
-        [field]: undefined,
-      }))
-      setSubmitError(null)
-      setRequiresVerification(false)
-    }
+  const emailValue = watch('email')
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault()
-
-    const validationResult = loginSchema.safeParse(formData)
-    if (!validationResult.success) {
-      const nextErrors = validationResult.error.issues.reduce<LoginFormErrors>(
-        (collectedErrors, issue) => {
-          const field = issue.path[0]
-          if (!isLoginFormField(field)) {
-            return collectedErrors
-          }
-          if (collectedErrors[field]) {
-            return collectedErrors
-          }
-          return {
-            ...collectedErrors,
-            [field]: issue.message,
-          }
-        },
-        {},
-      )
-      setFormErrors(nextErrors)
-      return
-    }
-
-    setIsLoading(true)
+  const onSubmit = handleSubmit(async (formData) => {
     setSubmitError(null)
     setRequiresVerification(false)
     try {
-      const response = await login(validationResult.data)
+      const response = await login(formData)
       dispatch(setAuthenticatedUser(response.user))
       navigate(resolveRedirectPath(searchParams.get('redirect')), { replace: true })
     } catch (error) {
       if (error instanceof ApiError) {
-        const nextErrors = error.validationErrors.reduce<LoginFormErrors>(
-          (collectedErrors, issue) =>
-            applyValidationErrorToLoginForm(collectedErrors, issue),
-          {},
-        )
-        setFormErrors(nextErrors)
+        error.validationErrors.forEach((issue) => {
+          applyValidationErrorToLoginForm(setError, issue)
+        })
         setSubmitError(error.message)
         setRequiresVerification(error.message === 'Email is not verified')
       } else {
         setSubmitError('Не удалось выполнить вход. Попробуйте снова.')
       }
-    } finally {
-      setIsLoading(false)
     }
-  }
+  })
 
   return (
     <div className="py-12">
@@ -104,33 +66,32 @@ export function LoginPage() {
         Нет аккаунта?{' '}
         <Link
           to="/register"
-          className="font-medium underline underline-offset-4 transition-colors hover:text-foreground"
-          style={{ color: 'oklch(0.420 0.095 200)' }}
+          className="font-medium text-primary underline underline-offset-4 transition-colors hover:text-foreground"
         >
           Зарегистрироваться
         </Link>
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-        <label className="block space-y-1.5">
-          <span className="text-sm font-medium">Email</span>
+      <form onSubmit={onSubmit} className="space-y-5" noValidate>
+        <div className="space-y-1.5">
+          <Label htmlFor="login-email">Email</Label>
           <Input
+            id="login-email"
             type="email"
             placeholder="you@example.com"
-            value={formData.email}
-            onChange={handleFieldChange('email')}
-            aria-invalid={Boolean(formErrors.email)}
+            aria-invalid={Boolean(errors.email)}
             className="h-10 rounded-md px-3 text-sm focus-visible:ring-1"
-            style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as CSSProperties}
+            style={{ '--tw-ring-color': 'var(--ring)' } as CSSProperties}
+            {...register('email')}
           />
-          {formErrors.email ? (
-            <p className="text-xs text-destructive">{formErrors.email}</p>
+          {errors.email ? (
+            <p className="text-xs text-destructive">{errors.email.message}</p>
           ) : null}
-        </label>
+        </div>
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Пароль</span>
+            <Label htmlFor="login-password">Пароль</Label>
             <Link
               to="/forgot-password"
               className="text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
@@ -141,13 +102,13 @@ export function LoginPage() {
 
           <div className="relative">
             <Input
+              id="login-password"
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
-              value={formData.password}
-              onChange={handleFieldChange('password')}
-              aria-invalid={Boolean(formErrors.password)}
+              aria-invalid={Boolean(errors.password)}
               className="h-10 rounded-md px-3 pr-10 text-sm focus-visible:ring-1"
-              style={{ '--tw-ring-color': 'oklch(0.420 0.095 200)' } as CSSProperties}
+              style={{ '--tw-ring-color': 'var(--ring)' } as CSSProperties}
+              {...register('password')}
             />
             <Button
               type="button"
@@ -160,19 +121,26 @@ export function LoginPage() {
               {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
             </Button>
           </div>
-          {formErrors.password ? (
-            <p className="text-xs text-destructive">{formErrors.password}</p>
+          {errors.password ? (
+            <p className="text-xs text-destructive">{errors.password.message}</p>
           ) : null}
         </div>
 
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={isSubmitting}
           variant="primary"
           size="md"
           className="h-10 w-full disabled:opacity-60"
         >
-          {isLoading ? 'Входим...' : 'Войти'}
+          {isSubmitting ? (
+            <>
+              <Loader size="xs" />
+              Входим...
+            </>
+          ) : (
+            'Войти'
+          )}
         </Button>
 
         {submitError ? (
@@ -183,7 +151,7 @@ export function LoginPage() {
           <p className="text-center text-xs text-muted-foreground">
             Подтвердите email перед входом.{' '}
             <Link
-              to={`/verify-email?email=${encodeURIComponent(formData.email.trim())}`}
+              to={`/verify-email?email=${encodeURIComponent(emailValue.trim())}`}
               className="underline underline-offset-4 hover:text-foreground"
             >
               Перейти к подтверждению
@@ -210,23 +178,13 @@ const resolveRedirectPath = (rawRedirect: string | null): string => {
   return rawRedirect
 }
 
-const isLoginFormField = (field: unknown): field is keyof LoginFormData =>
-  field === 'email' || field === 'password'
-
 const applyValidationErrorToLoginForm = (
-  currentErrors: LoginFormErrors,
+  setFieldError: (name: keyof LoginFormData, error: { message: string }) => void,
   issue: ApiValidationError,
-): LoginFormErrors => {
-  if (!isLoginFormField(issue.field)) {
-    return currentErrors
+): void => {
+  if (issue.field !== 'email' && issue.field !== 'password') {
+    return
   }
 
-  if (currentErrors[issue.field]) {
-    return currentErrors
-  }
-
-  return {
-    ...currentErrors,
-    [issue.field]: issue.message,
-  }
+  setFieldError(issue.field, { message: issue.message })
 }

@@ -11,9 +11,22 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react'
+import { EmptyState } from '@/components/EmptyState'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Loader } from '@/components/ui/loader'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   useDeletePostMutation,
   useGetPostsQuery,
@@ -64,10 +77,10 @@ function StatusBadge({ status, telegramPostUrl, errorMessage }: StatusBadgeProps
   if (status === 'published') {
     return (
       <div className="flex items-center gap-1.5">
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+        <Badge variant="secondary" className="gap-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
           Опубликован
-        </span>
+        </Badge>
         {telegramPostUrl ? (
           <a
             href={telegramPostUrl}
@@ -87,19 +100,19 @@ function StatusBadge({ status, telegramPostUrl, errorMessage }: StatusBadgeProps
   if (status === 'failed') {
     return (
       <div className="flex items-center gap-1.5" title={errorMessage ?? 'Ошибка публикации'}>
-        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-950/40 dark:text-red-400">
+        <Badge variant="destructive" className="gap-1">
           <AlertCircle size={10} />
           Ошибка
-        </span>
+        </Badge>
       </div>
     )
   }
 
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+    <Badge variant="outline" className="gap-1 text-muted-foreground">
       <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
       Черновик
-    </span>
+    </Badge>
   )
 }
 
@@ -164,6 +177,7 @@ export function PostsDashboardPage() {
   const [page, setPage] = useState(1)
   const [accumulatedPosts, setAccumulatedPosts] = useState<Post[]>([])
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
   const sentinelRef = useRef<HTMLDivElement>(null)
 
@@ -216,7 +230,6 @@ export function PostsDashboardPage() {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      if (!window.confirm('Удалить пост? Это действие необратимо.')) return
       setDeletingId(id)
       try {
         await deletePost(id).unwrap()
@@ -226,10 +239,17 @@ export function PostsDashboardPage() {
         toast.error('Не удалось удалить пост')
       } finally {
         setDeletingId(null)
+        setDeleteTargetId(null)
       }
     },
     [deletePost],
   )
+
+  const confirmDelete = useCallback(() => {
+    if (deleteTargetId) {
+      void handleDelete(deleteTargetId)
+    }
+  }, [deleteTargetId, handleDelete])
 
   const filteredPosts = accumulatedPosts.filter((post) => {
     const normalizedSearch = search.trim().toLowerCase()
@@ -295,8 +315,16 @@ export function PostsDashboardPage() {
       </div>
 
       {showInitialLoader ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader size="lg" text="Загружаем посты..." centered />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="space-y-3 rounded-xl border border-border bg-card p-5">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-2/3" />
+              <Skeleton className="mt-2 h-8 w-full" />
+            </div>
+          ))}
         </div>
       ) : isError ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-card py-20 text-muted-foreground">
@@ -311,10 +339,27 @@ export function PostsDashboardPage() {
           </Button>
         </div>
       ) : showGrid && filteredPosts.length === 0 && !isFetching ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-card py-20 text-muted-foreground">
-          <FileText size={32} className="opacity-30" />
-          <p className="text-sm">Посты не найдены</p>
-        </div>
+        search.trim() || activeFilter.status ? (
+          <EmptyState
+            icon={FileText}
+            title="Посты не найдены"
+            description="Попробуйте изменить фильтр или поисковый запрос."
+          />
+        ) : (
+          <EmptyState
+            icon={FileText}
+            title="Пока нет постов"
+            description="Создайте первый пост и опубликуйте его в Telegram-канал."
+            action={
+              <Button asChild variant="primary" size="sm">
+                <Link to="/dashboard/posts/new">
+                  <Plus size={14} />
+                  Создать пост
+                </Link>
+              </Button>
+            }
+          />
+        )
       ) : showGrid ? (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -322,7 +367,7 @@ export function PostsDashboardPage() {
               <PostCard
                 key={post.id}
                 post={post}
-                onDelete={(id) => void handleDelete(id)}
+                onDelete={(id) => setDeleteTargetId(id)}
                 isDeleting={deletingId === post.id}
               />
             ))}
@@ -345,6 +390,37 @@ export function PostsDashboardPage() {
           Показано {filteredPosts.length} из {data.total} постов
         </p>
       ) : null}
+
+      <AlertDialog
+        open={deleteTargetId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTargetId(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить пост?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Это действие необратимо. Пост будет удалён из вашего аккаунта.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingId !== null}>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault()
+                confirmDelete()
+              }}
+              disabled={deletingId !== null}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deletingId ? <Loader size="xs" /> : 'Удалить'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

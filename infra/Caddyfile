@@ -1,0 +1,17 @@
+{
+	email {$CADDY_EMAIL:internal@localhost}
+}
+
+# Local: CADDY_SITE=http://localhost (HTTP only)
+# Production: CADDY_SITE=app.example.com (auto HTTPS)
+{$CADDY_SITE:http://localhost} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	handle {
+		reverse_proxy client:80
+	}
+}

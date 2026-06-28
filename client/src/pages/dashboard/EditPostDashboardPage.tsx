@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Loader } from '@/components/ui/loader'
 import { Textarea } from '@/components/ui/textarea'
+import { postBodySchema } from '@/utils/posts/post.schema'
 import { cn } from '@/lib/utils'
 import {
   useGetPostByIdQuery,
@@ -225,9 +226,14 @@ function PostEditor({ post }: PostEditorProps) {
   }
 
   const handleSave = async () => {
-    if (!isDirty || !bodyValid) return
+    const bodyValidation = postBodySchema.safeParse({ body })
+    if (!bodyValidation.success) {
+      toast.error(bodyValidation.error.issues[0]?.message ?? 'Введите текст поста')
+      return
+    }
+    if (!isDirty) return
     try {
-      await updatePost({ id: post.id, title: title || undefined, body }).unwrap()
+      await updatePost({ id: post.id, title: title || undefined, body: bodyValidation.data.body }).unwrap()
       toast.success('Изменения сохранены')
     } catch {
       toast.error('Не удалось сохранить пост')
@@ -235,6 +241,11 @@ function PostEditor({ post }: PostEditorProps) {
   }
 
   const handlePublish = async () => {
+    const bodyValidation = postBodySchema.safeParse({ body })
+    if (!bodyValidation.success) {
+      toast.error(bodyValidation.error.issues[0]?.message ?? 'Введите текст поста')
+      return
+    }
     try {
       await publishPost({
         id: post.id,
