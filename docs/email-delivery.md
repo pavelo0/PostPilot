@@ -32,10 +32,28 @@ PostPilot отправляет коды подтверждения через [R
 | `RESEND_API_KEY` | prod/staging | `re_xxxxxxxx` |
 | `EMAIL_FROM` | recommended | `PostPilot <noreply@postpilot.app>` |
 | `EMAIL_VERIFICATION_SUBJECT` | optional | `PostPilot — код подтверждения` |
+| `APP_PUBLIC_URL` | optional | `https://post-pilot-sigma-sepia.vercel.app` |
 
 Локально без `RESEND_API_KEY` код пишется в консоль API (`LOG_EMAIL_VERIFICATION_CODE=true`).
 
-Render → `postpilot-api` → Environment → добавь `RESEND_API_KEY` и `EMAIL_FROM`.
+Render → `postpilot-api` → Environment → добавь `RESEND_API_KEY`, `EMAIL_FROM` и `APP_PUBLIC_URL`.
+
+## Branded template
+
+Письмо с кодом использует HTML-шаблон в стиле PostPilot:
+
+- Wordmark «PostPilot» (teal `#005B60`) + accent-полоска
+- Карточка на фоне `#f4f3ec`, код в accent-блоке с monospace
+- Кнопка «Открыть PostPilot» → `{APP_PUBLIC_URL}/verify-email` (если env задан)
+- Plain-text fallback для клиентов без HTML
+
+Файлы: `api/src/email/email-theme.ts`, `api/src/email/templates/verification-code.template.ts`.
+
+### Как превьюнуть
+
+1. Задай `RESEND_API_KEY` и `APP_PUBLIC_URL` в `api/.env`
+2. Запусти API, зарегистрируйся с email, доступным для Resend
+3. Проверь inbox и Resend → Emails / Logs
 
 ## Fallback
 
