@@ -3,6 +3,14 @@ import { baseQuery } from '@/store/api/base-query'
 
 export type PostStatus = 'draft' | 'published' | 'failed'
 
+export type PostMedia = {
+  id: string
+  mediaType: 'photo' | 'video'
+  telegramFileId: string
+  mimeType: string | null
+  order: number
+}
+
 export type Post = {
   id: string
   userId: string
@@ -16,6 +24,7 @@ export type Post = {
   telegramPostUrl: string | null
   createdAt: string
   updatedAt: string
+  mediaItems: PostMedia[]
 }
 
 export type GetPostsParams = {
@@ -54,6 +63,7 @@ type PostResponse = {
 type PublishPostRequest = {
   id: string
   channelId?: string
+  files?: File[]
 }
 
 export const postsApi = createApi({
@@ -101,11 +111,19 @@ export const postsApi = createApi({
       invalidatesTags: ['Posts'],
     }),
     publishPost: builder.mutation<Post, PublishPostRequest>({
-      query: ({ id, channelId }) => ({
-        url: `/api/posts/${id}/publish`,
-        method: 'POST',
-        body: channelId ? { channelId } : {},
-      }),
+      query: ({ id, channelId, files }) => {
+        if (files?.length) {
+          const form = new FormData()
+          if (channelId) form.append('channelId', channelId)
+          files.forEach((f) => form.append('media', f))
+          return { url: `/api/posts/${id}/publish`, method: 'POST', body: form }
+        }
+        return {
+          url: `/api/posts/${id}/publish`,
+          method: 'POST',
+          body: channelId ? { channelId } : {},
+        }
+      },
       transformResponse: (response: PostResponse) => response.post,
       invalidatesTags: (_result, _error, { id }) => ['Posts', { type: 'Post', id }],
     }),

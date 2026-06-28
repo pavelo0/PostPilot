@@ -334,6 +334,10 @@ curl http://localhost:5173/api/health  # proxy работает
 
 **Scope:** Redis, BullMQ, worker app, Telegram webhook, idempotency.
 
+**Включает двустороннюю синхронизацию App ↔ Telegram:**
+- App → Telegram: `editMessageText` при сохранении опубликованного поста
+- Telegram → App: `edited_message` webhook event → обновить `Post.body` в БД
+
 **DoD:** dummy job в очереди выполняется worker'ом.
 
 ---

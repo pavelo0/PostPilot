@@ -2,6 +2,14 @@ export const POST_STATUSES = ['draft', 'published', 'failed'] as const;
 
 export type PostStatus = (typeof POST_STATUSES)[number];
 
+export type PostMediaDto = {
+  id: string;
+  mediaType: 'photo' | 'video';
+  telegramFileId: string;
+  mimeType: string | null;
+  order: number;
+};
+
 export type PostDto = {
   id: string;
   userId: string;
@@ -15,4 +23,5 @@ export type PostDto = {
   telegramPostUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  mediaItems: PostMediaDto[];
 };

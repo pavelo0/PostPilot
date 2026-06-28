@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ElementType } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useCreatePostMutation, usePublishPostMutation } from '@/store/api/posts-api'
@@ -9,17 +11,18 @@ import {
   Bold,
   CalendarDays,
   ChevronDown,
+  Code,
   Copy,
   Eye,
   ImagePlus,
   Italic,
   Link2,
   List,
-  ListOrdered,
   Quote,
   RefreshCw,
   Send,
   Sparkles,
+  Strikethrough,
   Underline,
   X,
 } from 'lucide-react'
@@ -51,13 +54,14 @@ type FormatAction = {
 }
 
 const formatActions: FormatAction[] = [
-  { icon: Bold, title: 'Жирный', wrap: ['**', '**'] },
-  { icon: Italic, title: 'Курсив', wrap: ['_', '_'] },
-  { icon: Underline, title: 'Подчеркнутый', wrap: ['<u>', '</u>'] },
+  { icon: Bold, title: 'Жирный <b>', wrap: ['<b>', '</b>'] },
+  { icon: Italic, title: 'Курсив <i>', wrap: ['<i>', '</i>'] },
+  { icon: Underline, title: 'Подчёркнутый <u>', wrap: ['<u>', '</u>'] },
+  { icon: Strikethrough, title: 'Зачёркнутый <s>', wrap: ['<s>', '</s>'] },
+  { icon: Code, title: 'Код <code>', wrap: ['<code>', '</code>'] },
   { icon: List, title: 'Маркированный список', line: '• ' },
-  { icon: ListOrdered, title: 'Нумерованный список', line: '1. ' },
-  { icon: Link2, title: 'Ссылка', wrap: ['[', '](url)'] },
-  { icon: Quote, title: 'Цитата', line: '> ' },
+  { icon: Link2, title: 'Ссылка <a>', wrap: ['<a href="url">', '</a>'] },
+  { icon: Quote, title: 'Цитата <blockquote>', wrap: ['<blockquote>', '</blockquote>'] },
 ]
 
 /**
@@ -87,7 +91,7 @@ export function CreatePostDashboardPage() {
 
   const [name, setName] = useState('')
   const [body, setBody] = useState('')
-  const [image, setImage] = useState<string | null>(null)
+  const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [channels, setChannels] = useState<BotChannelStatus[]>([])
   const [channel, setChannel] = useState('')
   const [isChannelsLoading, setIsChannelsLoading] = useState(true)
@@ -101,7 +105,6 @@ export function CreatePostDashboardPage() {
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiResult, setAiResult] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
   const [createPost, { isLoading: isCreating }] = useCreatePostMutation()
   const [publishPost, { isLoading: isPublishing }] = usePublishPostMutation()
 
@@ -198,15 +201,21 @@ export function CreatePostDashboardPage() {
   }
 
   /**
-   * Stores a local preview URL for uploaded image.
+   * Adds selected files to the media list (max 10, photos + videos).
    */
-  const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) {
-      return
-    }
-    const fileUrl = URL.createObjectURL(file)
-    setImage(fileUrl)
+  const handleMediaChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(event.target.files ?? [])
+    if (!incoming.length) return
+    setMediaFiles((prev) => {
+      const combined = [...prev, ...incoming]
+      return combined.slice(0, 10)
+    })
+    event.target.value = ''
+  }
+
+  /** Removes a single media file by index. */
+  const removeMedia = (index: number) => {
+    setMediaFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   /**
@@ -222,11 +231,9 @@ export function CreatePostDashboardPage() {
     )
 
     if (publishMode === 'now' && !selectedChannel) {
-      setCreateError('Выберите канал для публикации')
+      toast.error('Выберите канал для публикации')
       return
     }
-
-    setCreateError(null)
 
     try {
       const post = await createPost({
@@ -238,12 +245,20 @@ export function CreatePostDashboardPage() {
         await publishPost({
           id: post.id,
           channelId: selectedChannel?.id,
+          files: mediaFiles.length > 0 ? mediaFiles : undefined,
         }).unwrap()
+        toast.success('Пост опубликован в Telegram')
+      } else {
+        if (mediaFiles.length > 0) {
+          toast('Черновик сохранён. Медиафайлы будут прикреплены при публикации.', { duration: 4000 })
+        } else {
+          toast.success('Черновик сохранён')
+        }
       }
 
       navigate('/dashboard/posts')
     } catch (error) {
-      setCreateError(
+      toast.error(
         getMutationErrorMessage(
           error,
           publishMode === 'now'
@@ -256,8 +271,11 @@ export function CreatePostDashboardPage() {
 
   const isSubmitting = isCreating || isPublishing
 
+  const hasMedia = mediaFiles.length > 0
+  const charLimit = hasMedia ? 1024 : 4096
   const charCount = body.length
   const wordCount = body.trim() ? body.trim().split(/\s+/).length : 0
+  const isOverLimit = charCount > charLimit
 
   return (
     <div className="max-w-5xl">
@@ -296,52 +314,49 @@ export function CreatePostDashboardPage() {
                 )}
               />
               <div className="flex items-center justify-between border-t border-border bg-secondary/20 px-5 py-2.5">
-                <span className="tabular-nums text-[11px] text-muted-foreground">
-                  {charCount} симв. · {wordCount} слов
+                <span className={cn(
+                  'tabular-nums text-[11px]',
+                  isOverLimit ? 'text-destructive' : 'text-muted-foreground',
+                )}>
+                  {charCount} / {charLimit} симв. · {wordCount} слов
                 </span>
                 {body.length > 0 ? (
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
                     onClick={() => setBody('')}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-destructive"
+                    className="h-auto gap-1 px-1 py-0.5 text-[11px] hover:text-destructive"
                   >
                     <X size={11} /> Очистить
-                  </button>
+                  </Button>
                 ) : null}
               </div>
             </div>
 
             <div className="flex w-10 shrink-0 flex-col items-center gap-0.5 border-l border-border bg-secondary/30 py-3">
               {formatActions.map(({ icon: Icon, title, ...action }) => (
-                <button
+                <Button
                   key={title}
-                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
                   title={title}
                   onClick={() => applyFormat({ icon: Icon, title, ...action })}
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 >
                   <Icon size={14} />
-                </button>
+                </Button>
               ))}
 
               <div className="my-1.5 h-px w-5 bg-border" />
 
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 title="AI-помощник"
                 onClick={() => setShowAI((value) => !value)}
-                className={cn(
-                  'flex h-8 w-8 items-center justify-center rounded-md transition-colors',
-                  showAI
-                    ? 'text-background'
-                    : 'text-muted-foreground hover:text-background',
-                )}
-                style={{
-                  background: showAI ? 'oklch(0.420 0.095 200)' : undefined,
-                }}
+                className={showAI ? 'text-background hover:text-background' : ''}
+                style={showAI ? { background: 'oklch(0.420 0.095 200)' } : undefined}
               >
                 <Sparkles size={14} />
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -354,14 +369,14 @@ export function CreatePostDashboardPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-1">
                   {aiSuggestions.map((suggestion) => (
-                    <button
+                    <Button
                       key={suggestion.label}
-                      type="button"
+                      variant="outline"
                       onClick={() => setAiPrompt(suggestion.prompt)}
-                      className="rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                      className="h-auto px-2.5 py-1 text-[11px] font-medium"
                     >
                       {suggestion.label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -374,11 +389,10 @@ export function CreatePostDashboardPage() {
                   className="min-h-[80px] resize-none border-border bg-background text-sm focus-visible:ring-1"
                 />
                 <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleAIGenerate}
+                  <Button
                     disabled={aiLoading || !aiPrompt.trim()}
-                    className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-50"
+                    onClick={() => void handleAIGenerate()}
+                    className="gap-2 text-sm font-medium text-background hover:opacity-85"
                     style={{ background: 'oklch(0.420 0.095 200)' }}
                   >
                     {aiLoading ? (
@@ -387,7 +401,7 @@ export function CreatePostDashboardPage() {
                       <Sparkles size={13} />
                     )}
                     {aiLoading ? 'Генерируем...' : 'Сгенерировать'}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -398,31 +412,31 @@ export function CreatePostDashboardPage() {
                       Результат
                     </span>
                     <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setAiResult('')}
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
                         title="Сбросить"
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        onClick={() => setAiResult('')}
                       >
                         <RefreshCw size={12} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => navigator.clipboard.writeText(aiResult)}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
                         title="Скопировать"
-                        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                        onClick={() => void navigator.clipboard.writeText(aiResult)}
                       >
                         <Copy size={12} />
-                      </button>
-                      <button
-                        type="button"
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="ml-1"
                         onClick={insertAIResult}
-                        className="ml-1 inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-85"
-                        style={{ background: 'oklch(0.130 0.010 255)' }}
                       >
                         <Send size={11} />
                         Вставить в пост
-                      </button>
+                      </Button>
                     </div>
                   </div>
                   <p className="whitespace-pre-line px-4 py-3 text-sm leading-relaxed text-foreground">
@@ -436,40 +450,78 @@ export function CreatePostDashboardPage() {
 
         <div className="space-y-4">
           <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="border-b border-border px-4 py-3">
-              <span className="text-sm font-semibold">Изображение</span>
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <span className="text-sm font-semibold">Медиа</span>
+              {mediaFiles.length > 0 ? (
+                <span className="text-[11px] text-muted-foreground">
+                  {mediaFiles.length} / 10
+                </span>
+              ) : null}
             </div>
             <div className="space-y-2 p-3">
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
+                multiple
                 className="hidden"
-                onChange={handleImageChange}
+                onChange={handleMediaChange}
               />
-              {image ? (
-                <div className="relative overflow-hidden rounded-lg border border-border">
-                  <img src={image} alt="Обложка" className="h-32 w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setImage(null)}
-                    className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
-                  >
-                    <X size={12} />
-                  </button>
+
+              {mediaFiles.length > 0 ? (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {mediaFiles.map((file, index) => {
+                    const url = URL.createObjectURL(file)
+                    const isVideo = file.type.startsWith('video/')
+                    return (
+                      <div key={index} className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-secondary/30">
+                        {isVideo ? (
+                          <video
+                            src={url}
+                            className="h-full w-full object-cover"
+                            muted
+                          />
+                        ) : (
+                          <img src={url} alt="" className="h-full w-full object-cover" />
+                        )}
+                        {isVideo ? (
+                          <div className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[9px] text-white">
+                            VID
+                          </div>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(index)}
+                          className="absolute top-1 right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    )
+                  })}
+                  {mediaFiles.length < 10 ? (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex aspect-square cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                    >
+                      <ImagePlus size={18} className="opacity-50" />
+                    </button>
+                  ) : null}
                 </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                  className="flex h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
                 >
                   <ImagePlus size={20} className="opacity-50" />
-                  <span className="text-xs">Нажмите для загрузки</span>
+                  <span className="text-xs">Фото или видео (до 10 файлов)</span>
                 </button>
               )}
+
               <p className="px-0.5 text-[11px] text-muted-foreground">
-                JPG, PNG, WebP · макс. 2 МБ · рекомендовано 1280×640
+                Фото ≤ 10 МБ · Видео ≤ 50 МБ · Альбом до 10 файлов
               </p>
             </div>
           </div>
@@ -526,7 +578,7 @@ export function CreatePostDashboardPage() {
                       type="button"
                       onClick={() => setPublishMode(mode)}
                       className={cn(
-                        'flex-1 py-2 text-xs font-medium transition-colors',
+                        'flex-1 cursor-pointer py-2 text-xs font-medium transition-colors',
                         publishMode === mode
                           ? 'bg-foreground text-background'
                           : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
@@ -571,12 +623,11 @@ export function CreatePostDashboardPage() {
           </div>
 
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={isSubmitting || !body.trim()}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-md text-sm font-semibold text-background transition-opacity hover:opacity-85 disabled:opacity-50"
-              style={{ background: 'oklch(0.130 0.010 255)' }}
+            <Button
+              variant="primary"
+              className="w-full font-semibold"
+              disabled={isSubmitting || !body.trim() || isOverLimit}
+              onClick={() => void handleCreate()}
             >
               {isSubmitting ? (
                 <RefreshCw size={14} className="animate-spin" />
@@ -590,31 +641,26 @@ export function CreatePostDashboardPage() {
                 : publishMode === 'now'
                   ? 'Опубликовать'
                   : 'Запланировать'}
-            </button>
+            </Button>
 
-            {createError ? (
-              <p className="text-xs text-destructive">{createError}</p>
-            ) : null}
-
-            <button
-              type="button"
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border text-sm font-medium text-foreground transition-colors hover:bg-secondary"
-            >
+            <Button variant="outline" className="w-full">
               <Eye size={14} />
               Предпросмотр
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              className="h-9 w-full text-xs"
               onClick={() => navigate(-1)}
-              className="h-9 w-full rounded-md text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               Отмена
-            </button>
+            </Button>
           </div>
 
           <p className="text-center text-[11px] text-muted-foreground">
-            Telegram: рекомендуемый размер поста до 4096 символов
+            {hasMedia
+              ? 'С медиа: подпись до 1024 симв.'
+              : 'Текст: до 4096 симв. С медиа — до 1024.'}
           </p>
         </div>
       </div>

@@ -6,7 +6,7 @@ import {
 import { BotConnectionsService } from '../bot-connections/bot-connections.service';
 import type { Post } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramService, type MediaItem } from '../telegram/telegram.service';
 import {
   createPostSchema,
   type CreatePostInput,
@@ -17,7 +17,7 @@ import {
   updatePostSchema,
   type UpdatePostInput,
 } from './posts.schemas';
-import type { PostDto } from './posts.types';
+import type { PostDto, PostMediaDto } from './posts.types';
 
 type PostSelectResult = Pick<
   Post,
@@ -33,9 +33,14 @@ type PostSelectResult = Pick<
   | 'createdAt'
   | 'updatedAt'
 > & {
-  channel: {
-    telegramUsername: string | null;
-  } | null;
+  channel: { telegramUsername: string | null } | null;
+  mediaItems: {
+    id: string;
+    mediaType: 'photo' | 'video';
+    telegramFileId: string;
+    mimeType: string | null;
+    order: number;
+  }[];
 };
 
 /**
@@ -148,11 +153,13 @@ export class PostsService {
 
   /**
    * Sends post body to user's connected Telegram channel.
+   * Supports optional media files — photo/video via sendPhoto/sendVideo/sendMediaGroup.
    */
   async publishForUser(
     postId: string,
     userId: string,
     payload: unknown = {},
+    files: Express.Multer.File[] = [],
   ): Promise<PostDto> {
     const input = this.parsePublishInput(payload);
     const post = await this.findOwnedPostOrThrow(postId, userId);
@@ -181,20 +188,73 @@ export class PostsService {
         throw new BadRequestException('Bot must be admin in the selected channel');
       }
 
-      const sentMessage = await this.telegramService.sendMessage(
-        botToken,
-        channel.telegramChatId,
-        post.body,
-      );
+      const mediaItems = this.buildMediaItems(files);
+      let sentMessageId: number;
+      let savedMediaItems: { telegramFileId: string; mediaType: 'photo' | 'video'; mimeType: string | null; order: number }[] = [];
+
+      if (mediaItems.length === 0) {
+        const sent = await this.telegramService.sendMessage(
+          botToken,
+          channel.telegramChatId,
+          post.body,
+        );
+        sentMessageId = sent.message_id;
+      } else if (mediaItems.length === 1) {
+        const item = mediaItems[0]!;
+        if (item.mediaType === 'video') {
+          const sent = await this.telegramService.sendVideo(
+            botToken,
+            channel.telegramChatId,
+            item,
+            post.body,
+          );
+          sentMessageId = sent.message_id;
+          savedMediaItems = [{ telegramFileId: sent.video.file_id, mediaType: 'video', mimeType: item.mimeType, order: 0 }];
+        } else {
+          const sent = await this.telegramService.sendPhoto(
+            botToken,
+            channel.telegramChatId,
+            item,
+            post.body,
+          );
+          sentMessageId = sent.message_id;
+          const bestPhoto = sent.photo.at(-1);
+          savedMediaItems = [{ telegramFileId: bestPhoto?.file_id ?? '', mediaType: 'photo', mimeType: item.mimeType, order: 0 }];
+        }
+      } else {
+        const sentMessages = await this.telegramService.sendMediaGroup(
+          botToken,
+          channel.telegramChatId,
+          mediaItems,
+          post.body,
+        );
+        sentMessageId = sentMessages[0]!.message_id;
+        savedMediaItems = mediaItems.map((item, index) => ({
+          telegramFileId: '',
+          mediaType: item.mediaType,
+          mimeType: item.mimeType,
+          order: index,
+        }));
+      }
 
       const publishedPost = await this.prisma.post.update({
         where: { id: postId },
         data: {
           status: 'published',
           channelId: channel.id,
-          telegramMessageId: sentMessage.message_id,
+          telegramMessageId: sentMessageId,
           publishedAt: new Date(),
           errorMessage: null,
+          ...(savedMediaItems.length > 0
+            ? {
+                mediaItems: {
+                  deleteMany: {},
+                  createMany: {
+                    data: savedMediaItems,
+                  },
+                },
+              }
+            : {}),
         },
         select: this.postSelect(),
       });
@@ -214,6 +274,18 @@ export class PostsService {
       });
       throw new BadRequestException(errorMessage);
     }
+  }
+
+  /**
+   * Converts multer files to typed MediaItem array for TelegramService.
+   */
+  private buildMediaItems(files: Express.Multer.File[]): MediaItem[] {
+    return files.map((file) => ({
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      originalName: file.originalname,
+      mediaType: file.mimetype.startsWith('video/') ? 'video' : 'photo',
+    }));
   }
 
   private parseCreateInput(payload: unknown): CreatePostInput {
@@ -312,9 +384,17 @@ export class PostsService {
       createdAt: true,
       updatedAt: true,
       channel: {
+        select: { telegramUsername: true },
+      },
+      mediaItems: {
         select: {
-          telegramUsername: true,
+          id: true,
+          mediaType: true,
+          telegramFileId: true,
+          mimeType: true,
+          order: true,
         },
+        orderBy: { order: 'asc' as const },
       },
     };
   }
@@ -336,6 +416,13 @@ export class PostsService {
       ),
       createdAt: post.createdAt.toISOString(),
       updatedAt: post.updatedAt.toISOString(),
+      mediaItems: post.mediaItems.map((m): PostMediaDto => ({
+        id: m.id,
+        mediaType: m.mediaType,
+        telegramFileId: m.telegramFileId,
+        mimeType: m.mimeType,
+        order: m.order,
+      })),
     };
   }
 

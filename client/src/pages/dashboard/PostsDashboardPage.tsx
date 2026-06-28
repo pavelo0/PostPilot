@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   AlertCircle,
   ExternalLink,
@@ -135,22 +136,21 @@ function PostCard({ post, onDelete, isDeleting }: PostCardProps) {
           </div>
 
           <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-            <Link
-              to={`/dashboard/posts/${post.id}`}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              title="Редактировать"
-            >
-              <Pencil size={13} />
-            </Link>
-            <button
-              type="button"
+            <Button asChild variant="ghost" size="icon-sm" title="Редактировать">
+              <Link to={`/dashboard/posts/${post.id}`}>
+                <Pencil size={13} />
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              title="Удалить"
               disabled={isDeleting}
               onClick={() => onDelete(post.id)}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-destructive disabled:opacity-40 dark:hover:bg-red-950/30"
-              title="Удалить"
+              className="hover:bg-red-50 hover:text-destructive dark:hover:bg-red-950/30"
             >
               {isDeleting ? <Loader size="xs" /> : <Trash2 size={13} />}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -221,8 +221,9 @@ export function PostsDashboardPage() {
       try {
         await deletePost(id).unwrap()
         setAccumulatedPosts((prev) => prev.filter((p) => p.id !== id))
+        toast.success('Пост удалён')
       } catch {
-        // RTK invalidatesTags will handle refetch on error
+        toast.error('Не удалось удалить пост')
       } finally {
         setDeletingId(null)
       }
