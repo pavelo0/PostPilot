@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://REPLACE_WITH_RENDER_API_URL/api/:path*"
+      "destination": "https://postpilot-api-tdey.onrender.com/api/:path*"
     }
   ]
 }
