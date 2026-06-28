@@ -10,7 +10,7 @@ services:
     runtime: node
     rootDir: api
     plan: free
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npx prisma migrate deploy && node dist/src/main
     healthCheckPath: /api/health
     envVars:
