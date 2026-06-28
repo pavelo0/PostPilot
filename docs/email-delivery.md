@@ -36,7 +36,19 @@ PostPilot отправляет коды подтверждения через [R
 
 Локально без `RESEND_API_KEY` код пишется в консоль API (`LOG_EMAIL_VERIFICATION_CODE=true`).
 
-Render → `postpilot-api` → Environment → добавь `RESEND_API_KEY`, `EMAIL_FROM` и `APP_PUBLIC_URL`.
+Render → `postpilot-api` → **Environment** → добавь вручную (Blueprint не подставит ключ сам):
+
+| Key | Value |
+|-----|-------|
+| `RESEND_API_KEY` | ключ из Resend (`re_...`) |
+| `EMAIL_FROM` | `PostPilot <onboarding@resend.dev>` |
+| `APP_PUBLIC_URL` | `https://post-pilot-sigma-sepia.vercel.app` |
+
+Save → **Manual Deploy**.
+
+Проверка: `GET /api/health` → `"email":"configured"`. Если `"missing"` — ключ не задан на сервере.
+
+Локальный `api/.env` **не попадает** на Render.
 
 ## Branded template
 
