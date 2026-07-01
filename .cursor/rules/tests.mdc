@@ -1,0 +1,40 @@
+---
+description: PostPilot testing — Jest (API), Playwright (browser e2e), regression
+globs:
+  - "**/*.spec.ts"
+  - "e2e/**/*.ts"
+---
+
+# PostPilot — Testing
+
+- Add only minimum useful tests for the task
+- Prefer integration/smoke when they give better confidence
+- Test behavior, not implementation details
+- Clear test names; stable selectors in Playwright
+- Do not remove passing tests without explicit reason
+
+## API (Jest)
+
+- Unit: `api/src/**/*.spec.ts` — `npm test` in `api/`
+- E2E: `api/test/*.e2e-spec.ts` — `npm run test:e2e` in `api/`
+- **Mandatory unit tests** when changing:
+  - Auth session logic
+  - Publish service / Telegram integration
+  - Bot token encryption (`bot-token-crypto.ts`)
+  - Post CRUD validation
+
+## Browser E2E (Playwright)
+
+- Location: `e2e/` at repo root — `npm run test:e2e` from root
+- Playwright is the standard for browser e2e and regression
+- Critical Pre-MVP flows:
+  1. Auth: register → verify → login → logout
+  2. Posts: create → edit → save draft
+  3. Channel: connect bot token
+  4. Publish: post → channel (mock Telegram or staging bot)
+
+## Regression
+
+- New features must not break critical flows
+- Run Playwright suite before merge when CI is configured (M14)
+- API business-logic changes → unit tests required

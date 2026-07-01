@@ -2,7 +2,7 @@
 
 SaaS для управления Telegram-каналами. Сейчас — Pre-MVP.
 
-**План разработки:** [docs/ship-modules.md](./docs/ship-modules.md)
+**AI context:** [docs/AIContext.md](./docs/AIContext.md) · **Ship modules:** [docs/ship-modules.md](./docs/ship-modules.md) · **Backlog:** [docs/TODO.md](./docs/TODO.md)
 
 ## Быстрый старт
 

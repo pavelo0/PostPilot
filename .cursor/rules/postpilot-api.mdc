@@ -1,35 +1,51 @@
 ---
-description: PostPilot backend — NestJS, Prisma, API conventions
-globs: api/**/*
-alwaysApply: false
+description: PostPilot API — NestJS modular monolith, Prisma, cookie auth
+globs:
+  - "api/**/*.ts"
 ---
 
 # PostPilot API
 
 ## Stack
 
-NestJS modular monolith · Prisma 7 · PostgreSQL · `@prisma/adapter-pg` · cookie auth (с M1)
+NestJS modular monolith · Prisma 7 · PostgreSQL · `@prisma/adapter-pg` · cookie auth · Zod validation
 
-## Структура
+## Pattern
 
-- `api/src/<domain>/` — module, controller, service (auth, posts, channels, telegram)
-- Controller — только HTTP; бизнес-логика в Service
-- Prisma только через `PrismaService` (global module)
+Controller → Service → Prisma. Controllers thin; business logic in services.
 
-## Prisma 7 + NestJS
+## Structure
+
+- `api/src/<domain>/` — module, controller, service (auth, posts, channels, telegram, bot-connections)
+- Prisma only via `PrismaService` (global module)
+- DTOs / Zod schemas for request validation
+
+## Prisma 7
 
 - `schema.prisma`: `moduleFormat = "cjs"`, output `../src/generated/prisma`
-- Import: `from '../generated/prisma/client'` (не `@prisma/client`)
-- Миграции: `prisma migrate dev` локально, `migrate deploy` на staging/prod
-- Schema — source of truth; не менять БД руками
+- Import: `from '../generated/prisma/client'` (not `@prisma/client`)
+- Migrations: `prisma migrate dev` locally, `migrate deploy` on staging/prod
+- Schema is source of truth; do not edit DB manually
 
-## API
+## API conventions
 
 - Global prefix: `/api` (health → `/api/health`)
-- Валидация входа: Zod или class-validator
-- Секреты только в `api/.env`; `TELEGRAM_BOT_TOKEN` никогда на frontend
-- Ошибки без утечки stack trace наружу
+- Global `AuthGuard`; use `@Public()` for open routes
+- Secrets only in `api/.env`; `TELEGRAM_BOT_TOKEN` never on frontend
+- Errors without stack trace leakage to client
+- HttpOnly session cookies; bcrypt for passwords
 
-## Безопасность (baseline)
+## Modules
 
-HttpOnly cookies · bcrypt для паролей · RBAC/CSRF — в Module 14
+| Module | Routes |
+|--------|--------|
+| Health | `GET /api/health` |
+| Auth | `/api/auth/*` |
+| Posts | `/api/posts/*` incl. publish |
+| Channels | `/api/channels/*` |
+| Bot | `/api/bot/*` |
+
+## Testing
+
+Unit tests in `*.spec.ts` for critical business logic (auth, publish, crypto).
+E2E in `api/test/`. See `.cursor/rules/tests.mdc`.

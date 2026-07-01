@@ -1,34 +1,29 @@
-# Cursor Rules для профиля PostPilot
+# Cursor Rules — PostPilot
 
-Правила лежат в `.cursor/rules/` и подхватываются автоматически, когда открыт этот репозиторий.
+Правила лежат в [`.cursor/rules/`](../.cursor/rules/) и подхватываются автоматически.
 
-## Профиль в Cursor
+## Файлы
 
-1. **Rules** → вкладка **PostPilot** (или Project)
-2. Убедись, что правила из репо подключены (Project Rules из `.cursor/rules/`)
-3. Опционально в User Rules профиля PostPilot добавь одну строку:
-
-```
-Работаем в Ship mode по docs/ship-modules.md. Один модуль за сессию.
-```
-
-## Файлы правил
-
-| Файл | Когда действует |
-|------|-----------------|
-| `postpilot-ship-mode.mdc` | Всегда — workflow, модули, язык |
-| `postpilot-api.mdc` | Файлы `api/**` |
-| `postpilot-client.mdc` | Файлы `client/**` |
+| Файл | Scope | Назначение |
+|------|-------|------------|
+| `index.mdc` | always | Overview, stack, AIContext, язык |
+| `postpilot-ship-mode.mdc` | always | Ship mode, модули M0–M6 |
+| `postpilot-client.mdc` | `client/**` | FSD target, RTK Query, shadcn |
+| `postpilot-api.mdc` | `api/**` | NestJS, Prisma, cookie auth |
+| `tests.mdc` | `**/*.spec.ts`, `e2e/**` | Jest + Playwright |
 
 ## Как начать сессию
 
 ```
-Ship Module 1
+Ship Module 6
 ```
 
-AI соберёт модуль по `docs/ship-modules.md`, ты пройдёшь Study guide.
+или «Module 6 Gate» — по [ship-modules.md](./ship-modules.md).
+
+## Контекст для AI
+
+Читай [AIContext.md](./AIContext.md) перед нетривиальными задачами.
 
 ## Текущий фокус
 
-- **Module 0** — ✅ готов
-- **Следующий:** Module 1 — Auth → «Ship Module 1»
+**Module 6 — Gate** (Pre-MVP closure). M0–M5 ✅.

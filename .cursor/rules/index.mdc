@@ -1,0 +1,28 @@
+---
+description: PostPilot project overview and global standards
+alwaysApply: true
+---
+
+# PostPilot — Overview
+
+- **Product:** SaaS для автоматизации ведения Telegram-каналов (Pre-MVP → MVP)
+- **Stack:** React 19 + Vite + TypeScript (client) · NestJS 11 + Prisma 7 + PostgreSQL (api)
+- **Repo:** monorepo — `client/`, `api/`, `e2e/`, `docs/`
+- **Primary context:** `docs/AIContext.md` — читать перед нетривиальными задачами
+- **Backlog:** `docs/TODO.md`
+- **Ship progress:** `docs/ship-modules.md`
+
+# Global Standards
+
+- Follow existing project structure and conventions
+- Keep changes minimal and scoped to the task
+- Match repository style; no unnecessary abstractions
+- TypeScript types by default; prefer async/await; avoid `any`
+- Do not change unrelated code
+- If unclear — ask a short clarifying question before editing
+- When done — mention what to test next
+
+# Language
+
+- Ответы пользователю — **русский**
+- Код, комментарии, identifiers — **English**
