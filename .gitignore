@@ -33,3 +33,7 @@ api/src/generated/
 .cursor
 !.cursor/rules/
 !.cursor/rules/**
+
+# Playwright
+test-results/
+playwright-report/
