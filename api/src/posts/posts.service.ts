@@ -1,14 +1,24 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { BotConnectionsService } from '../bot-connections/bot-connections.service';
 import type { Post } from '../generated/prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { TelegramService, type MediaItem } from '../telegram/telegram.service';
 import {
+  MEDIA_STORAGE,
+  type MediaStorage,
+} from '../media/media-storage.interface';
+import { PrismaService } from '../prisma/prisma.service';
+import { ScheduleService } from '../queue/schedule.service';
+import { TelegramService, type MediaItem } from '../telegram/telegram.service';
+import type { TelegramMediaGroupMessage } from '../telegram/telegram.types';
+import {
+  calendarPostsQuerySchema,
   createPostSchema,
+  type CalendarPostsQuery,
   type CreatePostInput,
   listPostsQuerySchema,
   type ListPostsQuery,
@@ -19,6 +29,18 @@ import {
 } from './posts.schemas';
 import type { PostDto, PostMediaDto } from './posts.types';
 
+const MAX_MEDIA_FILES = 10;
+
+type PostMediaSelectResult = {
+  id: string;
+  mediaType: 'photo' | 'video';
+  telegramFileId: string | null;
+  storageKey: string | null;
+  originalName: string | null;
+  mimeType: string | null;
+  order: number;
+};
+
 type PostSelectResult = Pick<
   Post,
   | 'id'
@@ -27,20 +49,15 @@ type PostSelectResult = Pick<
   | 'title'
   | 'body'
   | 'status'
+  | 'scheduledAt'
   | 'telegramMessageId'
   | 'publishedAt'
   | 'errorMessage'
   | 'createdAt'
   | 'updatedAt'
 > & {
-  channel: { telegramUsername: string | null } | null;
-  mediaItems: {
-    id: string;
-    mediaType: 'photo' | 'video';
-    telegramFileId: string;
-    mimeType: string | null;
-    order: number;
-  }[];
+  channel: { title: string | null; telegramUsername: string | null } | null;
+  mediaItems: PostMediaSelectResult[];
 };
 
 /**
@@ -52,6 +69,8 @@ export class PostsService {
     private readonly prisma: PrismaService,
     private readonly telegramService: TelegramService,
     private readonly botConnectionsService: BotConnectionsService,
+    private readonly scheduleService: ScheduleService,
+    @Inject(MEDIA_STORAGE) private readonly mediaStorage: MediaStorage,
   ) {}
 
   /**
@@ -83,10 +102,80 @@ export class PostsService {
   }
 
   /**
-   * Creates new post draft for current user.
+   * Returns posts visible on calendar within inclusive date range.
+   */
+  async listForCalendar(
+    userId: string,
+    query: CalendarPostsQuery,
+  ): Promise<PostDto[]> {
+    const parsed = calendarPostsQuerySchema.parse(query);
+    const fromDate = this.parseDateOnly(parsed.from);
+    const toDate = this.parseDateOnly(parsed.to);
+    toDate.setHours(23, 59, 59, 999);
+
+    if (fromDate > toDate) {
+      throw new BadRequestException('from must be before or equal to to');
+    }
+
+    const posts = await this.prisma.post.findMany({
+      where: {
+        userId,
+        OR: [
+          {
+            status: 'scheduled',
+            scheduledAt: { gte: fromDate, lte: toDate },
+          },
+          {
+            status: 'published',
+            publishedAt: { gte: fromDate, lte: toDate },
+          },
+        ],
+      },
+      select: this.postSelect(),
+    });
+
+    return posts
+      .map((post) => this.toDto(post))
+      .sort(
+        (left, right) =>
+          this.getCalendarEventTime(left).getTime() -
+          this.getCalendarEventTime(right).getTime(),
+      );
+  }
+
+  /**
+   * Creates new post draft or scheduled post for current user.
    */
   async createForUser(userId: string, payload: unknown): Promise<PostDto> {
     const input = this.parseCreateInput(payload);
+
+    if (input.scheduledAt) {
+      const scheduledAt = this.scheduleService.parseScheduledAt(input.scheduledAt);
+      const channel = await this.scheduleService.resolveChannelForSchedule(
+        userId,
+        input.channelId!,
+      );
+
+      const post = await this.prisma.post.create({
+        data: {
+          userId,
+          title: this.normalizeTitle(input.title),
+          body: input.body,
+          status: 'scheduled',
+          scheduledAt,
+          channelId: channel.id,
+        },
+        select: this.postSelect(),
+      });
+
+      await this.scheduleService.enqueueScheduledPost(
+        post.id,
+        userId,
+        scheduledAt,
+      );
+
+      return this.toDto(post);
+    }
 
     const post = await this.prisma.post.create({
       data: {
@@ -118,8 +207,53 @@ export class PostsService {
     payload: unknown,
   ): Promise<PostDto> {
     const input = this.parseUpdateInput(payload);
-    const hasContentUpdate = input.title !== undefined || input.body !== undefined;
-    await this.findOwnedPostOrThrow(postId, userId);
+    const existing = await this.findOwnedPostOrThrow(postId, userId);
+    const hasContentUpdate =
+      input.title !== undefined || input.body !== undefined;
+    const hasScheduleUpdate =
+      input.scheduledAt !== undefined || input.channelId !== undefined;
+
+    if (existing.status === 'published' && (hasContentUpdate || hasScheduleUpdate)) {
+      throw new BadRequestException('Published posts cannot be rescheduled');
+    }
+
+    if (hasContentUpdate && existing.status === 'scheduled') {
+      await this.scheduleService.cancelScheduledPost(postId);
+    }
+
+    let nextScheduledAt: Date | null | undefined = undefined;
+    let nextStatus = existing.status;
+    let nextChannelId: string | undefined = undefined;
+
+    if (input.scheduledAt === null) {
+      await this.scheduleService.cancelScheduledPost(postId);
+      nextScheduledAt = null;
+      nextStatus = hasContentUpdate ? 'draft' : existing.status === 'scheduled' ? 'draft' : existing.status;
+    } else if (input.scheduledAt !== undefined) {
+      const scheduledAt = this.scheduleService.parseScheduledAt(input.scheduledAt);
+      const channelId = input.channelId ?? existing.channelId;
+      if (!channelId) {
+        throw new BadRequestException('channelId is required when scheduling a post');
+      }
+      await this.scheduleService.resolveChannelForSchedule(userId, channelId);
+      nextScheduledAt = scheduledAt;
+      nextChannelId = channelId;
+      nextStatus = 'scheduled';
+    } else if (input.channelId !== undefined && existing.status === 'scheduled') {
+      await this.scheduleService.resolveChannelForSchedule(userId, input.channelId);
+      nextChannelId = input.channelId;
+    }
+
+    if (hasContentUpdate) {
+      nextStatus = input.scheduledAt === undefined && existing.status === 'scheduled'
+        ? 'draft'
+        : nextStatus === 'scheduled'
+          ? 'scheduled'
+          : 'draft';
+      if (nextStatus === 'draft') {
+        nextScheduledAt = null;
+      }
+    }
 
     const post = await this.prisma.post.update({
       where: { id: postId },
@@ -128,17 +262,29 @@ export class PostsService {
           ? { title: this.normalizeTitle(input.title) }
           : {}),
         ...(input.body !== undefined ? { body: input.body } : {}),
-        ...(hasContentUpdate
+        ...(nextChannelId !== undefined ? { channelId: nextChannelId } : {}),
+        ...(nextScheduledAt !== undefined ? { scheduledAt: nextScheduledAt } : {}),
+        ...(hasContentUpdate && nextStatus === 'draft'
           ? {
               status: 'draft',
               telegramMessageId: null,
               publishedAt: null,
               errorMessage: null,
+              scheduledAt: null,
             }
           : {}),
+        ...(nextStatus === 'scheduled' ? { status: 'scheduled', errorMessage: null } : {}),
       },
       select: this.postSelect(),
     });
+
+    if (post.status === 'scheduled' && post.scheduledAt) {
+      await this.scheduleService.enqueueScheduledPost(
+        post.id,
+        userId,
+        post.scheduledAt,
+      );
+    }
 
     return this.toDto(post);
   }
@@ -147,8 +293,88 @@ export class PostsService {
    * Deletes post owned by current user.
    */
   async removeForUser(postId: string, userId: string): Promise<void> {
-    await this.findOwnedPostOrThrow(postId, userId);
+    const post = await this.findOwnedPostOrThrow(postId, userId);
+    if (post.status === 'scheduled') {
+      await this.scheduleService.cancelScheduledPost(postId);
+    }
+    await this.cleanupPostMediaStorage(post.mediaItems);
     await this.prisma.post.delete({ where: { id: postId } });
+  }
+
+  /**
+   * Uploads media files for draft, scheduled, or failed posts.
+   */
+  async uploadMediaForUser(
+    postId: string,
+    userId: string,
+    files: Express.Multer.File[],
+  ): Promise<PostDto> {
+    if (files.length === 0) {
+      throw new BadRequestException('No media files provided');
+    }
+
+    const post = await this.findOwnedPostOrThrow(postId, userId);
+    this.assertMediaEditableStatus(post.status);
+
+    if (post.mediaItems.length + files.length > MAX_MEDIA_FILES) {
+      throw new BadRequestException(`Maximum ${MAX_MEDIA_FILES} media files allowed`);
+    }
+
+    const baseOrder = post.mediaItems.length;
+
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index]!;
+      const mediaId = randomUUID();
+      const mediaType = file.mimetype.startsWith('video/') ? 'video' : 'photo';
+      const { storageKey } = await this.mediaStorage.save({
+        postId,
+        mediaId,
+        buffer: file.buffer,
+        mimeType: file.mimetype,
+        originalName: file.originalname,
+      });
+
+      await this.prisma.postMedia.create({
+        data: {
+          id: mediaId,
+          postId,
+          mediaType,
+          storageKey,
+          originalName: file.originalname,
+          sizeBytes: file.size,
+          mimeType: file.mimetype,
+          order: baseOrder + index,
+        },
+      });
+    }
+
+    return this.getByIdForUser(postId, userId);
+  }
+
+  /**
+   * Removes pending media file from a post.
+   */
+  async deleteMediaForUser(
+    postId: string,
+    userId: string,
+    mediaId: string,
+  ): Promise<PostDto> {
+    const post = await this.findOwnedPostOrThrow(postId, userId);
+    this.assertMediaEditableStatus(post.status);
+
+    const mediaItem = post.mediaItems.find((item) => item.id === mediaId);
+    if (!mediaItem) {
+      throw new NotFoundException('Media not found');
+    }
+
+    if (!mediaItem.storageKey) {
+      throw new BadRequestException('Published media cannot be removed');
+    }
+
+    await this.mediaStorage.delete(mediaItem.storageKey);
+    await this.prisma.postMedia.delete({ where: { id: mediaId } });
+
+    return this.getByIdForUser(postId, userId);
   }
 
   /**
@@ -168,9 +394,16 @@ export class PostsService {
       return this.toDto(post);
     }
 
+    if (post.status === 'scheduled') {
+      await this.scheduleService.cancelScheduledPost(postId);
+    }
+
     const botToken =
       await this.botConnectionsService.getRequiredActiveTokenForUser(userId);
-    const channel = await this.resolvePublishChannel(userId, input.channelId);
+    const channel = await this.resolvePublishChannel(
+      userId,
+      input.channelId ?? post.channelId ?? undefined,
+    );
 
     if (!channel) {
       throw new BadRequestException('Connect channel first');
@@ -188,9 +421,21 @@ export class PostsService {
         throw new BadRequestException('Bot must be admin in the selected channel');
       }
 
-      const mediaItems = this.buildMediaItems(files);
+      const mediaItems =
+        files.length > 0
+          ? this.buildMediaItems(files)
+          : await this.loadStoredMediaItems(post.mediaItems);
+      const storageKeysToDelete = post.mediaItems
+        .map((item) => item.storageKey)
+        .filter((key): key is string => Boolean(key));
+
       let sentMessageId: number;
-      let savedMediaItems: { telegramFileId: string; mediaType: 'photo' | 'video'; mimeType: string | null; order: number }[] = [];
+      let savedMediaItems: {
+        telegramFileId: string;
+        mediaType: 'photo' | 'video';
+        mimeType: string | null;
+        order: number;
+      }[] = [];
 
       if (mediaItems.length === 0) {
         const sent = await this.telegramService.sendMessage(
@@ -209,7 +454,14 @@ export class PostsService {
             post.body,
           );
           sentMessageId = sent.message_id;
-          savedMediaItems = [{ telegramFileId: sent.video.file_id, mediaType: 'video', mimeType: item.mimeType, order: 0 }];
+          savedMediaItems = [
+            {
+              telegramFileId: sent.video.file_id,
+              mediaType: 'video',
+              mimeType: item.mimeType,
+              order: 0,
+            },
+          ];
         } else {
           const sent = await this.telegramService.sendPhoto(
             botToken,
@@ -219,7 +471,14 @@ export class PostsService {
           );
           sentMessageId = sent.message_id;
           const bestPhoto = sent.photo.at(-1);
-          savedMediaItems = [{ telegramFileId: bestPhoto?.file_id ?? '', mediaType: 'photo', mimeType: item.mimeType, order: 0 }];
+          savedMediaItems = [
+            {
+              telegramFileId: bestPhoto?.file_id ?? '',
+              mediaType: 'photo',
+              mimeType: item.mimeType,
+              order: 0,
+            },
+          ];
         }
       } else {
         const sentMessages = await this.telegramService.sendMediaGroup(
@@ -229,12 +488,19 @@ export class PostsService {
           post.body,
         );
         sentMessageId = sentMessages[0]!.message_id;
-        savedMediaItems = mediaItems.map((item, index) => ({
-          telegramFileId: '',
-          mediaType: item.mediaType,
-          mimeType: item.mimeType,
+        savedMediaItems = sentMessages.map((message, index) => ({
+          telegramFileId: this.extractFileIdFromMessage(
+            message,
+            mediaItems[index]!.mediaType,
+          ),
+          mediaType: mediaItems[index]!.mediaType,
+          mimeType: mediaItems[index]!.mimeType,
           order: index,
         }));
+      }
+
+      if (storageKeysToDelete.length > 0) {
+        await this.mediaStorage.deleteMany(storageKeysToDelete);
       }
 
       const publishedPost = await this.prisma.post.update({
@@ -276,6 +542,21 @@ export class PostsService {
     }
   }
 
+  private getCalendarEventTime(post: PostDto): Date {
+    if (post.status === 'scheduled' && post.scheduledAt) {
+      return new Date(post.scheduledAt);
+    }
+    if (post.publishedAt) {
+      return new Date(post.publishedAt);
+    }
+    return new Date(post.createdAt);
+  }
+
+  private parseDateOnly(value: string): Date {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year!, month! - 1, day);
+  }
+
   /**
    * Converts multer files to typed MediaItem array for TelegramService.
    */
@@ -286,6 +567,55 @@ export class PostsService {
       originalName: file.originalname,
       mediaType: file.mimetype.startsWith('video/') ? 'video' : 'photo',
     }));
+  }
+
+  private async loadStoredMediaItems(
+    mediaItems: PostMediaSelectResult[],
+  ): Promise<MediaItem[]> {
+    const pendingItems = mediaItems
+      .filter((item) => item.storageKey)
+      .sort((left, right) => left.order - right.order);
+
+    return Promise.all(
+      pendingItems.map(async (item) => {
+        const stored = await this.mediaStorage.load(item.storageKey!);
+        return {
+          buffer: stored.buffer,
+          mimeType: item.mimeType ?? stored.mimeType,
+          originalName: item.originalName ?? stored.originalName,
+          mediaType: item.mediaType,
+        };
+      }),
+    );
+  }
+
+  private extractFileIdFromMessage(
+    message: TelegramMediaGroupMessage,
+    mediaType: 'photo' | 'video',
+  ): string {
+    if (mediaType === 'video' && message.video) {
+      return message.video.file_id;
+    }
+
+    return message.photo?.at(-1)?.file_id ?? '';
+  }
+
+  private assertMediaEditableStatus(status: Post['status']): void {
+    if (status === 'published') {
+      throw new BadRequestException('Published posts cannot be modified');
+    }
+  }
+
+  private async cleanupPostMediaStorage(
+    mediaItems: PostMediaSelectResult[],
+  ): Promise<void> {
+    const storageKeys = mediaItems
+      .map((item) => item.storageKey)
+      .filter((key): key is string => Boolean(key));
+
+    if (storageKeys.length > 0) {
+      await this.mediaStorage.deleteMany(storageKeys);
+    }
   }
 
   private parseCreateInput(payload: unknown): CreatePostInput {
@@ -378,19 +708,22 @@ export class PostsService {
       title: true,
       body: true,
       status: true,
+      scheduledAt: true,
       telegramMessageId: true,
       publishedAt: true,
       errorMessage: true,
       createdAt: true,
       updatedAt: true,
       channel: {
-        select: { telegramUsername: true },
+        select: { title: true, telegramUsername: true },
       },
       mediaItems: {
         select: {
           id: true,
           mediaType: true,
           telegramFileId: true,
+          storageKey: true,
+          originalName: true,
           mimeType: true,
           order: true,
         },
@@ -407,6 +740,7 @@ export class PostsService {
       title: post.title,
       body: post.body,
       status: post.status,
+      scheduledAt: post.scheduledAt?.toISOString() ?? null,
       telegramMessageId: post.telegramMessageId,
       publishedAt: post.publishedAt?.toISOString() ?? null,
       errorMessage: post.errorMessage,
@@ -414,16 +748,35 @@ export class PostsService {
         post.channel?.telegramUsername ?? null,
         post.telegramMessageId,
       ),
+      channelLabel: this.buildChannelLabel(post.channel),
       createdAt: post.createdAt.toISOString(),
       updatedAt: post.updatedAt.toISOString(),
-      mediaItems: post.mediaItems.map((m): PostMediaDto => ({
-        id: m.id,
-        mediaType: m.mediaType,
-        telegramFileId: m.telegramFileId,
-        mimeType: m.mimeType,
-        order: m.order,
-      })),
+      mediaItems: post.mediaItems.map(
+        (m): PostMediaDto => ({
+          id: m.id,
+          mediaType: m.mediaType,
+          telegramFileId: m.telegramFileId,
+          originalName: m.originalName,
+          mimeType: m.mimeType,
+          order: m.order,
+          isPending: Boolean(m.storageKey),
+        }),
+      ),
     };
+  }
+
+  private buildChannelLabel(
+    channel: { title: string | null; telegramUsername: string | null } | null,
+  ): string | null {
+    if (!channel) {
+      return null;
+    }
+    if (channel.telegramUsername) {
+      return channel.telegramUsername.startsWith('@')
+        ? channel.telegramUsername
+        : `@${channel.telegramUsername}`;
+    }
+    return channel.title || null;
   }
 
   private buildTelegramPostUrl(

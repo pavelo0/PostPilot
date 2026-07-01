@@ -5,12 +5,14 @@ import { BillingModule } from './billing/billing.module';
 import { BotConnectionsModule } from './bot-connections/bot-connections.module';
 import { ChannelsModule } from './channels/channels.module';
 import { HealthModule } from './health/health.module';
+import { MediaModule } from './media/media.module';
 import { PostsModule } from './posts/posts.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
     PrismaModule,
+    MediaModule,
     EmailModule,
     HealthModule,
     AuthModule,

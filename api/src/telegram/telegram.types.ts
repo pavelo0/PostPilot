@@ -41,3 +41,8 @@ export type TelegramPhotoMessage = TelegramSentMessage & {
 export type TelegramVideoMessage = TelegramSentMessage & {
   video: TelegramVideo;
 };
+
+export type TelegramMediaGroupMessage = TelegramSentMessage & {
+  photo?: TelegramPhoto[];
+  video?: TelegramVideo;
+};

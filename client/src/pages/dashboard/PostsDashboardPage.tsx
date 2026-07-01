@@ -33,6 +33,7 @@ import {
   type Post,
   type PostStatus,
 } from '@/store/api/posts-api'
+import { useScheduledPostsRefetch } from '@/hooks/useScheduledPostsRefetch'
 
 const PAGE_LIMIT = 12
 
@@ -44,6 +45,7 @@ type FilterOption = {
 const filterOptions: FilterOption[] = [
   { label: 'Все', status: undefined },
   { label: 'Черновики', status: 'draft' },
+  { label: 'Запланированные', status: 'scheduled' },
   { label: 'Опубликованные', status: 'published' },
   { label: 'Ошибка', status: 'failed' },
 ]
@@ -105,6 +107,15 @@ function StatusBadge({ status, telegramPostUrl, errorMessage }: StatusBadgeProps
           Ошибка
         </Badge>
       </div>
+    )
+  }
+
+  if (status === 'scheduled') {
+    return (
+      <Badge variant="secondary" className="gap-1 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+        Запланирован
+      </Badge>
     )
   }
 
@@ -187,6 +198,11 @@ export function PostsDashboardPage() {
   )
 
   const [deletePost] = useDeletePostMutation()
+
+  const postsForScheduling =
+    accumulatedPosts.length > 0 ? accumulatedPosts : (data?.posts ?? [])
+
+  useScheduledPostsRefetch(postsForScheduling, refetch)
 
   // Reset accumulated posts when filter changes
   useEffect(() => {

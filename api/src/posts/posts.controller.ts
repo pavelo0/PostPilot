@@ -14,7 +14,10 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import type { AuthenticatedRequest } from '../auth/auth.types';
-import { listPostsQuerySchema } from './posts.schemas';
+import {
+  calendarPostsQuerySchema,
+  listPostsQuerySchema,
+} from './posts.schemas';
 import { PostsService } from './posts.service';
 import type { PostDto } from './posts.types';
 
@@ -40,6 +43,27 @@ export class PostsController {
       );
     }
     return this.postsService.listForUser(request.authUser!.id, parsed.data);
+  }
+
+  /**
+   * Returns posts for calendar view within a date range.
+   */
+  @Get('calendar')
+  async calendar(
+    @Req() request: AuthenticatedRequest,
+    @Query() rawQuery: unknown,
+  ): Promise<{ posts: PostDto[] }> {
+    const parsed = calendarPostsQuerySchema.safeParse(rawQuery);
+    if (!parsed.success) {
+      throw new BadRequestException(
+        parsed.error.issues[0]?.message ?? 'Invalid query params',
+      );
+    }
+    const posts = await this.postsService.listForCalendar(
+      request.authUser!.id,
+      parsed.data,
+    );
+    return { posts };
   }
 
   /**
@@ -99,6 +123,41 @@ export class PostsController {
   ): Promise<{ success: true }> {
     await this.postsService.removeForUser(id, request.authUser!.id);
     return { success: true };
+  }
+
+  /**
+   * Uploads media files for draft, scheduled, or failed posts.
+   */
+  @HttpPost(':id/media')
+  @UseInterceptors(FilesInterceptor('media', 10))
+  async uploadMedia(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @UploadedFiles() files: Express.Multer.File[] = [],
+  ): Promise<{ post: PostDto }> {
+    const post = await this.postsService.uploadMediaForUser(
+      id,
+      request.authUser!.id,
+      files,
+    );
+    return { post };
+  }
+
+  /**
+   * Removes pending media from a post.
+   */
+  @Delete(':id/media/:mediaId')
+  async deleteMedia(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('mediaId') mediaId: string,
+  ): Promise<{ post: PostDto }> {
+    const post = await this.postsService.deleteMediaForUser(
+      id,
+      request.authUser!.id,
+      mediaId,
+    );
+    return { post };
   }
 
   /**
