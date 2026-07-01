@@ -1,33 +1,55 @@
 ---
-description: PostPilot frontend — React, Vite, UI conventions
-globs: client/**/*
-alwaysApply: false
+description: PostPilot client — React, FSD target, RTK Query, shadcn/ui
+globs:
+  - "client/**/*.tsx"
+  - "client/**/*.ts"
 ---
 
 # PostPilot Client
 
 ## Stack
 
-React · Vite · TypeScript · React Router · TanStack Query · React Hook Form · Zod
+React 19 · Vite 8 · TypeScript · React Router 7 · Redux Toolkit + RTK Query · React Hook Form · Zod · shadcn/ui · Tailwind 4 · Sonner
 
-UI kit: см. `docs/designSystem.md` (активно с Module 5; до этого — минимальный чистый UI).
+UI kit: `docs/designSystem.md`
 
 ## API calls
 
-- Dev: относительные пути `/api/...` (Vite proxy → `:3000`)
-- Всегда `credentials: 'include'` для cookie-auth
-- TanStack Query для server state; не дублировать в useState
+- Dev: relative `/api/...` (Vite proxy → `:3000`)
+- Always `credentials: 'include'` for cookie auth
+- RTK Query in `store/api/` for server state; auth in `store/auth.slice.ts`
+- Legacy fetch wrappers in `utils/` — migrate to `entities/*/api/` over time
 
-## Структура (целевая)
+## FSD layers (target, after M6)
 
-- `client/src/pages/` — экраны
-- `client/src/api/` — hooks и fetch-обёртки
-- `client/src/components/` — переиспользуемые UI
+Migrating gradually. **New code after M6** should follow FSD minimum:
 
-## TypeScript
+```
+client/src/
+  app/        # providers, router
+  pages/      # route screens only
+  widgets/    # composite blocks (sidebar, landing sections)
+  features/   # user actions (createPost, publishPost, connectChannel)
+  entities/   # domain types + API (post, channel, user)
+  shared/     # ui/, lib/, config/
+```
 
-Без `any`. Типы API-ответов явные.
+### Import rules (strict)
 
-## Scope Pre-MVP
+| Layer | May import from |
+|-------|-----------------|
+| `app` | all layers |
+| `pages` | widgets, features, entities, shared |
+| `widgets` | features, entities, shared |
+| `features` | entities, shared |
+| `entities` | shared only |
+| `shared` | nothing above |
 
-Без SEO/Next.js. SPA после логина. Один канал, текст, publish now.
+Legacy code in `pages/`, `components/`, `store/`, `utils/` is OK until migrated.
+
+## Conventions
+
+- Functional components; small and focused
+- No `any`; explicit API response types
+- shadcn components in `components/ui/` (→ `shared/ui/` when migrated)
+- Scope Pre-MVP: SPA after login, one channel, text posts, publish now
