@@ -29,9 +29,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { postBodySchema } from '@/utils/posts/post.schema'
 import { cn } from '@/lib/utils'
 import {
+  useDeletePostMediaMutation,
   useGetPostByIdQuery,
   usePublishPostMutation,
   useUpdatePostMutation,
+  useUploadPostMediaMutation,
   type Post,
   type PostStatus,
 } from '@/store/api/posts-api'
@@ -75,6 +77,10 @@ const GENERATED_SAMPLE = `Многие думают, что для успешн�
 
 const STATUS_CONFIG: Record<PostStatus, { label: string; className: string }> = {
   draft: { label: 'Черновик', className: 'bg-secondary text-muted-foreground' },
+  scheduled: {
+    label: 'Запланирован',
+    className: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400',
+  },
   published: {
     label: 'Опубликован',
     className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
@@ -107,7 +113,6 @@ function PostEditor({ post }: PostEditorProps) {
 
   const [title, setTitle] = useState(post.title ?? '')
   const [body, setBody] = useState(post.body)
-  const [mediaFiles, setMediaFiles] = useState<File[]>([])
 
   // AI panel
   const [showAI, setShowAI] = useState(false)
@@ -122,31 +127,47 @@ function PostEditor({ post }: PostEditorProps) {
 
   const [updatePost, { isLoading: isSaving }] = useUpdatePostMutation()
   const [publishPost, { isLoading: isPublishing }] = usePublishPostMutation()
+  const [uploadPostMedia, { isLoading: isUploadingMedia }] = useUploadPostMediaMutation()
+  const [deletePostMedia, { isLoading: isDeletingMedia }] = useDeletePostMediaMutation()
 
   const isDirty = title !== (post.title ?? '') || body !== post.body
   const canPublish = post.status === 'draft' || post.status === 'failed'
+  const canEditMedia = post.status !== 'published'
 
-  const hasMedia = mediaFiles.length > 0 || post.mediaItems.length > 0
+  const hasMedia = post.mediaItems.length > 0
   const charLimit = hasMedia ? 1024 : 4096
   const charCount = body.length
   const wordCount = body.trim() ? body.trim().split(/\s+/).length : 0
   const isOverLimit = charCount > charLimit
   const bodyValid = body.trim().length >= 1 && !isOverLimit
 
-  /** Adds new media files (max 10 total across new + existing). */
-  const handleMediaChange = (event: ChangeEvent<HTMLInputElement>) => {
+  /** Uploads selected media files to the server immediately. */
+  const handleMediaChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const incoming = Array.from(event.target.files ?? [])
-    if (!incoming.length) return
-    setMediaFiles((prev) => {
-      const totalExisting = post.mediaItems.length + prev.length
-      const remaining = Math.max(0, 10 - totalExisting)
-      return [...prev, ...incoming.slice(0, remaining)]
-    })
     event.target.value = ''
+    if (!incoming.length) return
+
+    const remaining = Math.max(0, 10 - post.mediaItems.length)
+    const files = incoming.slice(0, remaining)
+    if (!files.length) {
+      toast.error('Максимум 10 файлов')
+      return
+    }
+
+    try {
+      await uploadPostMedia({ id: post.id, files }).unwrap()
+      toast.success('Медиа загружено')
+    } catch {
+      toast.error('Не удалось загрузить медиа')
+    }
   }
 
-  const removeNewMedia = (index: number) => {
-    setMediaFiles((prev) => prev.filter((_, i) => i !== index))
+  const removePendingMedia = async (mediaId: string) => {
+    try {
+      await deletePostMedia({ id: post.id, mediaId }).unwrap()
+    } catch {
+      toast.error('Не удалось удалить медиа')
+    }
   }
 
   useEffect(() => {
@@ -250,7 +271,6 @@ function PostEditor({ post }: PostEditorProps) {
       await publishPost({
         id: post.id,
         channelId: channelId || undefined,
-        files: mediaFiles.length > 0 ? mediaFiles : undefined,
       }).unwrap()
       toast.success('Пост опубликован в Telegram')
       navigate('/dashboard/posts')
@@ -581,13 +601,13 @@ function PostEditor({ post }: PostEditorProps) {
           </div>
 
           {/* Media card */}
-          {canPublish ? (
+          {canEditMedia ? (
             <div className="overflow-hidden rounded-xl border border-border bg-card">
               <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <span className="text-sm font-semibold">Медиа</span>
-                {(post.mediaItems.length + mediaFiles.length) > 0 ? (
+                {post.mediaItems.length > 0 ? (
                   <span className="text-[11px] text-muted-foreground">
-                    {post.mediaItems.length + mediaFiles.length} / 10
+                    {post.mediaItems.length} / 10
                   </span>
                 ) : null}
               </div>
@@ -598,77 +618,55 @@ function PostEditor({ post }: PostEditorProps) {
                   accept="image/*,video/*"
                   multiple
                   className="hidden"
-                  onChange={handleMediaChange}
+                  onChange={(event) => void handleMediaChange(event)}
                 />
 
-                {/* Existing published media */}
                 {post.mediaItems.length > 0 ? (
                   <div className="grid grid-cols-3 gap-1.5">
                     {post.mediaItems.map((item, index) => (
                       <div
                         key={item.id}
-                        className="flex aspect-square items-center justify-center rounded-lg border border-border bg-secondary/40 text-[10px] font-medium text-muted-foreground"
+                        className="group relative flex aspect-square flex-col items-center justify-center rounded-lg border border-border bg-secondary/40 px-1 text-center text-[10px] font-medium text-muted-foreground"
                       >
-                        {item.mediaType === 'video' ? 'VID' : 'IMG'} {index + 1}
+                        <span>{item.mediaType === 'video' ? 'VID' : 'IMG'} {index + 1}</span>
+                        {item.originalName ? (
+                          <span className="mt-1 line-clamp-2 w-full text-[9px] font-normal opacity-70">
+                            {item.originalName}
+                          </span>
+                        ) : null}
+                        {item.isPending ? (
+                          <button
+                            type="button"
+                            onClick={() => void removePendingMedia(item.id)}
+                            disabled={isDeletingMedia}
+                            className="absolute top-1 right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          >
+                            <X size={10} />
+                          </button>
+                        ) : null}
                       </div>
                     ))}
                   </div>
                 ) : null}
 
-                {/* New files picker */}
-                {(post.mediaItems.length + mediaFiles.length) < 10 ? (
-                  mediaFiles.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {mediaFiles.map((file, index) => {
-                        const url = URL.createObjectURL(file)
-                        const isVideo = file.type.startsWith('video/')
-                        return (
-                          <div key={index} className="group relative aspect-square overflow-hidden rounded-lg border border-border bg-secondary/30">
-                            {isVideo ? (
-                              <video src={url} className="h-full w-full object-cover" muted />
-                            ) : (
-                              <img src={url} alt="" className="h-full w-full object-cover" />
-                            )}
-                            {isVideo ? (
-                              <div className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1 py-0.5 text-[9px] text-white">VID</div>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={() => removeNewMedia(index)}
-                              className="absolute top-1 right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                            >
-                              <X size={10} />
-                            </button>
-                          </div>
-                        )
-                      })}
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex aspect-square cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                      >
-                        <ImagePlus size={16} className="opacity-50" />
-                      </button>
-                    </div>
-                  ) : post.mediaItems.length === 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex h-20 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                    >
-                      <ImagePlus size={18} className="opacity-50" />
-                      <span className="text-[11px]">Добавить фото/видео</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex h-20 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
-                    >
-                      <ImagePlus size={18} className="opacity-50" />
-                      <span className="text-[11px]">Добавить ещё</span>
-                    </button>
-                  )
+                {post.mediaItems.length < 10 ? (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingMedia}
+                    className="flex h-20 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isUploadingMedia ? (
+                      <Loader size="sm" />
+                    ) : (
+                      <>
+                        <ImagePlus size={18} className="opacity-50" />
+                        <span className="text-[11px]">
+                          {post.mediaItems.length > 0 ? 'Добавить ещё' : 'Добавить фото/видео'}
+                        </span>
+                      </>
+                    )}
+                  </button>
                 ) : null}
 
                 <p className="px-0.5 text-[11px] text-muted-foreground">

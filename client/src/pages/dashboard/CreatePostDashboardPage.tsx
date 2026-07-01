@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ElementType } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Loader } from '@/components/ui/loader'
 import { Textarea } from '@/components/ui/textarea'
-import { useCreatePostMutation, usePublishPostMutation } from '@/store/api/posts-api'
+import { useCreatePostMutation, usePublishPostMutation, useUploadPostMediaMutation } from '@/store/api/posts-api'
 import { getBotSetup, type BotChannelStatus } from '@/utils/bot/bot.api'
 import { postBodySchema } from '@/utils/posts/post.schema'
 import { cn } from '@/lib/utils'
@@ -90,6 +90,7 @@ function getMutationErrorMessage(error: unknown, fallback: string): string {
  */
 export function CreatePostDashboardPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -111,6 +112,7 @@ export function CreatePostDashboardPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [createPost, { isLoading: isCreating }] = useCreatePostMutation()
   const [publishPost, { isLoading: isPublishing }] = usePublishPostMutation()
+  const [uploadPostMedia, { isLoading: isUploadingMedia }] = useUploadPostMediaMutation()
 
   useEffect(() => {
     let isMounted = true
@@ -144,6 +146,22 @@ export function CreatePostDashboardPage() {
       isMounted = false
     }
   }, [])
+
+  useEffect(() => {
+    const dateParam = searchParams.get('date')
+    const timeParam = searchParams.get('time')
+    const modeParam = searchParams.get('mode')
+
+    if (dateParam) {
+      setScheduleDate(dateParam)
+    }
+    if (timeParam) {
+      setScheduleTime(timeParam)
+    }
+    if (modeParam === 'schedule') {
+      setPublishMode('schedule')
+    }
+  }, [searchParams])
 
   /**
    * Applies markdown-like formatting to selected text.
@@ -241,7 +259,40 @@ export function CreatePostDashboardPage() {
       return
     }
 
+    if (publishMode === 'schedule') {
+      if (!selectedChannel) {
+        toast.error('Выберите канал для планирования')
+        return
+      }
+      if (!scheduleDate) {
+        toast.error('Выберите дату публикации')
+        return
+      }
+      if (!scheduleTime) {
+        toast.error('Выберите время публикации')
+        return
+      }
+    }
+
     try {
+      if (publishMode === 'schedule') {
+        const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}`).toISOString()
+        const post = await createPost({
+          title: name.trim() ? name.trim() : undefined,
+          body: bodyValidation.data.body,
+          scheduledAt,
+          channelId: selectedChannel!.id,
+        }).unwrap()
+
+        if (mediaFiles.length > 0) {
+          await uploadPostMedia({ id: post.id, files: mediaFiles }).unwrap()
+        }
+
+        toast.success('Пост запланирован')
+        navigate(`/dashboard/calendar?date=${scheduleDate}`)
+        return
+      }
+
       const post = await createPost({
         title: name.trim() ? name.trim() : undefined,
         body: bodyValidation.data.body,
@@ -256,10 +307,9 @@ export function CreatePostDashboardPage() {
         toast.success('Пост опубликован в Telegram')
       } else {
         if (mediaFiles.length > 0) {
-          toast('Черновик сохранён. Медиафайлы будут прикреплены при публикации.', { duration: 4000 })
-        } else {
-          toast.success('Черновик сохранён')
+          await uploadPostMedia({ id: post.id, files: mediaFiles }).unwrap()
         }
+        toast.success('Черновик сохранён')
       }
 
       navigate('/dashboard/posts')
@@ -275,7 +325,7 @@ export function CreatePostDashboardPage() {
     }
   }
 
-  const isSubmitting = isCreating || isPublishing
+  const isSubmitting = isCreating || isPublishing || isUploadingMedia
 
   const hasMedia = mediaFiles.length > 0
   const charLimit = hasMedia ? 1024 : 4096
