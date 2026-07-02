@@ -24,6 +24,10 @@ const config = {
       source: '/api/:path*',
       destination: `${renderApiUrl}/api/:path*`,
     },
+    {
+      source: '/((?!api/).*)',
+      destination: '/index.html',
+    },
   ],
 }
 
